@@ -24,7 +24,7 @@ type AuthContextValue = {
     password: string;
     displayName: string;
     goal: string;
-  }) => Promise<void>;
+  }) => Promise<{needsEmailConfirmation: boolean}>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -35,6 +35,32 @@ async function readProfile(userId: string) {
   const supabase = getSupabaseBrowserClient();
   const {data} = await supabase.from('users').select('*').eq('id', userId).single();
   return data;
+}
+
+function normalizeAuthError(error: unknown) {
+  const fallback = 'Une erreur est survenue.';
+  const message = error instanceof Error ? error.message : fallback;
+
+  if (message === 'Load failed' || message === 'Failed to fetch') {
+    return 'Connexion Supabase impossible. Vérifie la connexion réseau et la configuration des clés.';
+  }
+
+  if (message.toLowerCase().includes('password')) {
+    return 'Mot de passe invalide ou trop court.';
+  }
+
+  return message;
+}
+
+async function ensureProfileRow(session: Session) {
+  const supabase = getSupabaseBrowserClient();
+  const metadata = session.user.user_metadata ?? {};
+
+  await supabase.from('users').upsert({
+    id: session.user.id,
+    display_name: metadata.display_name ?? metadata.full_name ?? null,
+    goal: metadata.goal ?? 'general',
+  });
 }
 
 export function AuthProvider({children}: {children: ReactNode}) {
@@ -50,9 +76,29 @@ export function AuthProvider({children}: {children: ReactNode}) {
 
     const profile = await readProfile(session.user.id);
     if (!profile) {
+      await ensureProfileRow(session);
+      const hydratedProfile = await readProfile(session.user.id);
+      if (hydratedProfile) {
+        setUser({
+          id: hydratedProfile.id,
+          email: session.user.email ?? '',
+          displayName: hydratedProfile.display_name,
+          avatarUrl: hydratedProfile.avatar_url,
+          heightCm: hydratedProfile.height_cm,
+          weightKg: hydratedProfile.weight_kg,
+          goal: hydratedProfile.goal,
+        });
+        return;
+      }
+
       setUser({
         id: session.user.id,
         email: session.user.email ?? '',
+        displayName:
+          session.user.user_metadata?.display_name ??
+          session.user.user_metadata?.full_name ??
+          null,
+        goal: session.user.user_metadata?.goal ?? 'general',
       });
       return;
     }
@@ -72,7 +118,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
     const supabase = getSupabaseBrowserClient();
     const {error} = await supabase.auth.signInWithPassword({email, password});
     if (error) {
-      throw error;
+      throw new Error(normalizeAuthError(error));
     }
   }
 
@@ -86,19 +132,30 @@ export function AuthProvider({children}: {children: ReactNode}) {
     const {data, error} = await supabase.auth.signUp({
       email: payload.email,
       password: payload.password,
+      options: {
+        data: {
+          display_name: payload.displayName,
+          goal: payload.goal,
+        },
+        emailRedirectTo:
+          typeof window !== 'undefined' ? `${window.location.origin}/auth/login` : undefined,
+      },
     });
 
     if (error) {
-      throw error;
+      throw new Error(normalizeAuthError(error));
+    }
+
+    if (data.session) {
+      await ensureProfileRow(data.session);
+      return {needsEmailConfirmation: false};
     }
 
     if (data.user) {
-      await supabase.from('users').upsert({
-        id: data.user.id,
-        display_name: payload.displayName,
-        goal: payload.goal,
-      });
+      return {needsEmailConfirmation: true};
     }
+
+    return {needsEmailConfirmation: false};
   }
 
   async function signOut() {

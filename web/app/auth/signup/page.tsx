@@ -16,6 +16,8 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -25,11 +27,34 @@ export default function SignupPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (!displayName.trim() || !email.trim() || !password.trim()) {
+      setError('Remplis tous les champs.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      await signUp({email, password, displayName, goal});
-      router.replace('/dashboard');
+      const result = await signUp({email, password, displayName, goal});
+      if (result.needsEmailConfirmation) {
+        setSuccess(
+          'Compte créé. Vérifie ton email puis connecte-toi pour activer ton espace.',
+        );
+      } else {
+        router.replace('/dashboard');
+      }
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Création impossible.');
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -93,12 +118,14 @@ export default function SignupPage() {
             </select>
 
             {error ? <p className="text-sm text-[#ff8d8d]">{error}</p> : null}
+            {success ? <p className="text-sm text-[#b6f7b0]">{success}</p> : null}
 
             <button
               type="submit"
+              disabled={isSubmitting}
               className="w-full rounded-full bg-[linear-gradient(135deg,#e94b35,#ff9a3d)] px-5 py-3.5 text-sm font-medium text-white"
             >
-              Créer le compte
+              {isSubmitting ? 'Création…' : 'Créer le compte'}
             </button>
 
             <p className="text-sm text-mist/55">
