@@ -1,0 +1,44 @@
+.DS_Store
+
+# Environment
+backend/.env
+backend/.env.*
+web/.env.local
+web/.env.*
+mobile/.env
+mobile/.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node / Next
+node_modules/
+web/.next/
+web/out/
+
+# React Native / build artifacts
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/ios/build/
+mobile/ios/Pods/
+mobile/ios/.xcode.env.local
+mobile/ios/.xcode.env
+mobile/ios/**/*.xcuserdata/
+mobile/.bundle/
+mobile/vendor/
+mobile/.git/
+
+# Local storage and analysis artifacts
+backend/storage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local tooling
+.claude/
