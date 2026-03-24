@@ -13,13 +13,22 @@ import type {WorkoutHistoryItem} from '@/lib/types';
 export default function DashboardPage() {
   const {user} = useAuth();
   const [history, setHistory] = useState<WorkoutHistoryItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) {
       return;
     }
 
-    void getWorkoutHistory(user.id).then(setHistory);
+    void getWorkoutHistory(user.id)
+      .then((payload) => {
+        setHistory(payload);
+        setError(null);
+      })
+      .catch((loadError) => {
+        setHistory([]);
+        setError(loadError instanceof Error ? loadError.message : 'Chargement impossible.');
+      });
   }, [user?.id]);
 
   const averageScore = history.length
@@ -77,6 +86,11 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-3">
+            {error ? (
+              <div className="rounded-[24px] border border-[#ff8d8d]/30 bg-[#ff8d8d]/8 p-4 text-sm text-[#ffb0b0]">
+                {error}
+              </div>
+            ) : null}
             {history.map((session) => (
               <Link
                 key={session.id}

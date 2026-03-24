@@ -19,7 +19,7 @@ const navigation = [
 export function AppShell({children}: {children: ReactNode}) {
   const pathname = usePathname();
   const router = useRouter();
-  const {session, user, isLoading, signOut} = useAuth();
+  const {session, user, isLoading, authError, signOut} = useAuth();
 
   useEffect(() => {
     if (!isLoading && !session) {
@@ -30,8 +30,11 @@ export function AppShell({children}: {children: ReactNode}) {
   if (isLoading || !session) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-graphite text-ivory">
-        <div className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm uppercase tracking-[0.3em] text-mist/70">
-          Initialisation du laboratoire
+        <div className="space-y-3 text-center">
+          <div className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm uppercase tracking-[0.3em] text-mist/70">
+            Initialisation du laboratoire
+          </div>
+          {authError ? <p className="text-sm text-[#ff8d8d]">{authError}</p> : null}
         </div>
       </div>
     );

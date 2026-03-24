@@ -17,19 +17,33 @@ export function NutritionPanel() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mealType, setMealType] = useState('lunch');
   const [dailyLog, setDailyLog] = useState<TodayLogResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) {
       return;
     }
 
-    void getTodayNutritionLog(user.id).then(setDailyLog);
+    void getTodayNutritionLog(user.id)
+      .then((payload) => {
+        setDailyLog(payload);
+        setError(null);
+      })
+      .catch((loadError) => {
+        setError(loadError instanceof Error ? loadError.message : 'Chargement nutrition impossible.');
+      });
   }, [user?.id]);
 
   async function handleAnalyze(file: File) {
-    setSelectedFile(file);
-    const result = await analyzeFoodPhoto(file);
-    setAnalysis(result);
+    try {
+      setError(null);
+      setSelectedFile(file);
+      const result = await analyzeFoodPhoto(file);
+      setAnalysis(result);
+    } catch (analyzeError) {
+      setAnalysis(null);
+      setError(analyzeError instanceof Error ? analyzeError.message : 'Analyse photo impossible.');
+    }
   }
 
   async function handleLog() {
@@ -37,19 +51,24 @@ export function NutritionPanel() {
       return;
     }
 
-    await logFood({
-      userId: user.id,
-      mealType,
-      foodName: analysis.dishName,
-      calories: analysis.estimatedCalories,
-      proteinG: analysis.proteinG,
-      carbsG: analysis.carbsG,
-      fatG: analysis.fatG,
-      source: 'photo_ai',
-    });
+    try {
+      setError(null);
+      await logFood({
+        userId: user.id,
+        mealType,
+        foodName: analysis.dishName,
+        calories: analysis.estimatedCalories,
+        proteinG: analysis.proteinG,
+        carbsG: analysis.carbsG,
+        fatG: analysis.fatG,
+        source: 'photo_ai',
+      });
 
-    const refresh = await getTodayNutritionLog(user.id);
-    setDailyLog(refresh);
+      const refresh = await getTodayNutritionLog(user.id);
+      setDailyLog(refresh);
+    } catch (logError) {
+      setError(logError instanceof Error ? logError.message : 'Enregistrement impossible.');
+    }
   }
 
   return (
@@ -91,6 +110,7 @@ export function NutritionPanel() {
           {selectedFile ? (
             <p className="text-sm text-mist/55">Photo sélectionnée: {selectedFile.name}</p>
           ) : null}
+          {error ? <p className="text-sm text-[#ff8d8d]">{error}</p> : null}
 
           {analysis ? (
             <div className="grid gap-3 md:grid-cols-2">

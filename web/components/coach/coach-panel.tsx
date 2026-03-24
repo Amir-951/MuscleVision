@@ -23,19 +23,34 @@ export function CoachPanel() {
   const [draft, setDraft] = useState('');
   const [sessions, setSessions] = useState<WorkoutHistoryItem[]>([]);
   const [linkedSessionId, setLinkedSessionId] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) {
       return;
     }
 
-    void getCoachHistory(coachId, user.id).then(setMessages);
-    void getWorkoutHistory(user.id).then((history) => {
-      setSessions(history);
-      if (!linkedSessionId && history[0]?.id) {
-        setLinkedSessionId(history[0].id);
-      }
-    });
+    void getCoachHistory(coachId, user.id)
+      .then((history) => {
+        setMessages(history);
+        setError(null);
+      })
+      .catch((loadError) => {
+        setMessages([]);
+        setError(loadError instanceof Error ? loadError.message : 'Chargement coach impossible.');
+      });
+    void getWorkoutHistory(user.id)
+      .then((history) => {
+        setSessions(history);
+        if (!linkedSessionId && history[0]?.id) {
+          setLinkedSessionId(history[0].id);
+        }
+        setError(null);
+      })
+      .catch((loadError) => {
+        setSessions([]);
+        setError(loadError instanceof Error ? loadError.message : 'Chargement des séances impossible.');
+      });
   }, [coachId, linkedSessionId, user?.id]);
 
   async function handleSend() {
@@ -48,22 +63,34 @@ export function CoachPanel() {
     const currentDraft = draft;
     setDraft('');
 
-    const reply = await sendCoachMessage({
-      coachId,
-      userId: user.id,
-      message: currentDraft,
-      sessionId: linkedSessionId || undefined,
-    });
+    try {
+      setError(null);
+      const reply = await sendCoachMessage({
+        coachId,
+        userId: user.id,
+        message: currentDraft,
+        sessionId: linkedSessionId || undefined,
+      });
 
-    setMessages((current) => [...current, {role: 'assistant', content: reply.reply}]);
+      setMessages((current) => [...current, {role: 'assistant', content: reply.reply}]);
+    } catch (sendError) {
+      setMessages((current) => current.slice(0, -1));
+      setDraft(currentDraft);
+      setError(sendError instanceof Error ? sendError.message : 'Envoi impossible.');
+    }
   }
 
   async function handleClear() {
     if (!user?.id) {
       return;
     }
-    await clearCoachHistory(coachId, user.id);
-    setMessages([]);
+    try {
+      setError(null);
+      await clearCoachHistory(coachId, user.id);
+      setMessages([]);
+    } catch (clearError) {
+      setError(clearError instanceof Error ? clearError.message : 'Réinitialisation impossible.');
+    }
   }
 
   return (
@@ -96,6 +123,7 @@ export function CoachPanel() {
 
           <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
             <p className="text-xs uppercase tracking-[0.28em] text-mist/45">Contexte séance</p>
+            {error ? <p className="mt-3 text-sm text-[#ff8d8d]">{error}</p> : null}
             <select
               value={linkedSessionId}
               onChange={(event) => setLinkedSessionId(event.target.value)}

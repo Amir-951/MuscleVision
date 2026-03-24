@@ -12,40 +12,59 @@ import type {
 } from '@/lib/types';
 import {config} from '@/lib/config';
 
-async function authHeaders() {
-  const supabase = getSupabaseBrowserClient();
-  const {
-    data: {session},
-  } = await supabase.auth.getSession();
+function normalizeRequestError(error: unknown) {
+  const fallback = 'Une erreur réseau est survenue.';
+  const message = error instanceof Error ? error.message : fallback;
 
-  return session?.access_token
-    ? {Authorization: `Bearer ${session.access_token}`}
-    : {};
+  if (message === 'Load failed' || message === 'Failed to fetch') {
+    return 'Connexion impossible au service distant. Vérifie Supabase, l’API backend et ta connexion.';
+  }
+
+  return message;
+}
+
+async function authHeaders() {
+  try {
+    const supabase = getSupabaseBrowserClient();
+    const {
+      data: {session},
+    } = await supabase.auth.getSession();
+
+    return session?.access_token
+      ? {Authorization: `Bearer ${session.access_token}`}
+      : {};
+  } catch (error) {
+    throw new Error(normalizeRequestError(error));
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = await authHeaders();
-  const requestHeaders = new Headers(init?.headers);
+  try {
+    const headers = await authHeaders();
+    const requestHeaders = new Headers(init?.headers);
 
-  if (!(init?.body instanceof FormData)) {
-    requestHeaders.set('Content-Type', 'application/json');
+    if (!(init?.body instanceof FormData)) {
+      requestHeaders.set('Content-Type', 'application/json');
+    }
+
+    Object.entries(headers).forEach(([key, value]) => {
+      requestHeaders.set(key, value);
+    });
+
+    const response = await fetch(`${config.apiBaseUrl}${path}`, {
+      ...init,
+      headers: requestHeaders,
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || `API error ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    throw new Error(normalizeRequestError(error));
   }
-
-  Object.entries(headers).forEach(([key, value]) => {
-    requestHeaders.set(key, value);
-  });
-
-  const response = await fetch(`${config.apiBaseUrl}${path}`, {
-    ...init,
-    headers: requestHeaders,
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `API error ${response.status}`);
-  }
-
-  return response.json();
 }
 
 export async function uploadWorkoutFile(params: {

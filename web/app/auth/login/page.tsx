@@ -10,7 +10,7 @@ import {SectionLabel} from '@/components/shared/section-label';
 
 export default function LoginPage() {
   const router = useRouter();
-  const {session, signIn} = useAuth();
+  const {session, signIn, authError} = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +67,7 @@ export default function LoginPage() {
             />
 
             {error ? <p className="text-sm text-[#ff8d8d]">{error}</p> : null}
+            {!error && authError ? <p className="text-sm text-[#ff8d8d]">{authError}</p> : null}
 
             <button
               type="submit"

@@ -10,7 +10,7 @@ import {SectionLabel} from '@/components/shared/section-label';
 
 export default function SignupPage() {
   const router = useRouter();
-  const {session, signUp} = useAuth();
+  const {session, signUp, authError} = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [goal, setGoal] = useState('general');
   const [email, setEmail] = useState('');
@@ -118,6 +118,7 @@ export default function SignupPage() {
             </select>
 
             {error ? <p className="text-sm text-[#ff8d8d]">{error}</p> : null}
+            {!error && authError ? <p className="text-sm text-[#ff8d8d]">{authError}</p> : null}
             {success ? <p className="text-sm text-[#b6f7b0]">{success}</p> : null}
 
             <button

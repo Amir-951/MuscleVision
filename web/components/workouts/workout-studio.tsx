@@ -41,24 +41,30 @@ export function WorkoutStudio() {
       return;
     }
 
-    setError(null);
-    setSelectedFile(file);
-    setJobStatus({
-      status: 'pending',
-      progress: 0.03,
-      message: 'Mise en file de l’analyse…',
-    });
+    try {
+      setError(null);
+      setSelectedFile(file);
+      setJobStatus({
+        status: 'pending',
+        progress: 0.03,
+        message: 'Mise en file de l’analyse…',
+      });
 
-    const payload = await uploadWorkoutFile({
-      userId: user.id,
-      source,
-      file,
-    });
+      const payload = await uploadWorkoutFile({
+        userId: user.id,
+        source,
+        file,
+      });
 
-    setJob({
-      jobId: payload.job_id,
-      sessionId: payload.session_id,
-    });
+      setJob({
+        jobId: payload.job_id,
+        sessionId: payload.session_id,
+      });
+    } catch (launchError) {
+      setJob(null);
+      setJobStatus(null);
+      setError(launchError instanceof Error ? launchError.message : 'Lancement impossible.');
+    }
   }
 
   useEffect(() => {

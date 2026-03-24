@@ -18,6 +18,7 @@ type AuthContextValue = {
   session: Session | null;
   user: AppUser | null;
   isLoading: boolean;
+  authError: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (payload: {
     email: string;
@@ -33,7 +34,10 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 async function readProfile(userId: string) {
   const supabase = getSupabaseBrowserClient();
-  const {data} = await supabase.from('users').select('*').eq('id', userId).single();
+  const {data, error} = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+  if (error) {
+    throw error;
+  }
   return data;
 }
 
@@ -56,41 +60,73 @@ async function ensureProfileRow(session: Session) {
   const supabase = getSupabaseBrowserClient();
   const metadata = session.user.user_metadata ?? {};
 
-  await supabase.from('users').upsert({
+  const {error} = await supabase.from('users').upsert({
     id: session.user.id,
     display_name: metadata.display_name ?? metadata.full_name ?? null,
     goal: metadata.goal ?? 'general',
   });
+
+  if (error) {
+    throw error;
+  }
 }
 
 export function AuthProvider({children}: {children: ReactNode}) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const refreshProfile = useCallback(async () => {
     if (!session?.user.id) {
       setUser(null);
+      setAuthError(null);
       return;
     }
 
-    const profile = await readProfile(session.user.id);
-    if (!profile) {
-      await ensureProfileRow(session);
-      const hydratedProfile = await readProfile(session.user.id);
-      if (hydratedProfile) {
+    try {
+      const profile = await readProfile(session.user.id);
+      if (!profile) {
+        await ensureProfileRow(session);
+        const hydratedProfile = await readProfile(session.user.id);
+        if (hydratedProfile) {
+          setUser({
+            id: hydratedProfile.id,
+            email: session.user.email ?? '',
+            displayName: hydratedProfile.display_name,
+            avatarUrl: hydratedProfile.avatar_url,
+            heightCm: hydratedProfile.height_cm,
+            weightKg: hydratedProfile.weight_kg,
+            goal: hydratedProfile.goal,
+          });
+          setAuthError(null);
+          return;
+        }
+
         setUser({
-          id: hydratedProfile.id,
+          id: session.user.id,
           email: session.user.email ?? '',
-          displayName: hydratedProfile.display_name,
-          avatarUrl: hydratedProfile.avatar_url,
-          heightCm: hydratedProfile.height_cm,
-          weightKg: hydratedProfile.weight_kg,
-          goal: hydratedProfile.goal,
+          displayName:
+            session.user.user_metadata?.display_name ??
+            session.user.user_metadata?.full_name ??
+            null,
+          goal: session.user.user_metadata?.goal ?? 'general',
         });
+        setAuthError(null);
         return;
       }
 
+      setUser({
+        id: profile.id,
+        email: session.user.email ?? '',
+        displayName: profile.display_name,
+        avatarUrl: profile.avatar_url,
+        heightCm: profile.height_cm,
+        weightKg: profile.weight_kg,
+        goal: profile.goal,
+      });
+      setAuthError(null);
+    } catch (error) {
       setUser({
         id: session.user.id,
         email: session.user.email ?? '',
@@ -100,22 +136,13 @@ export function AuthProvider({children}: {children: ReactNode}) {
           null,
         goal: session.user.user_metadata?.goal ?? 'general',
       });
-      return;
+      setAuthError(normalizeAuthError(error));
     }
-
-    setUser({
-      id: profile.id,
-      email: session.user.email ?? '',
-      displayName: profile.display_name,
-      avatarUrl: profile.avatar_url,
-      heightCm: profile.height_cm,
-      weightKg: profile.weight_kg,
-      goal: profile.goal,
-    });
   }, [session]);
 
   async function signIn(email: string, password: string) {
     const supabase = getSupabaseBrowserClient();
+    setAuthError(null);
     const {error} = await supabase.auth.signInWithPassword({email, password});
     if (error) {
       throw new Error(normalizeAuthError(error));
@@ -129,6 +156,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
     goal: string;
   }) {
     const supabase = getSupabaseBrowserClient();
+    setAuthError(null);
     const {data, error} = await supabase.auth.signUp({
       email: payload.email,
       password: payload.password,
@@ -163,23 +191,36 @@ export function AuthProvider({children}: {children: ReactNode}) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+    setAuthError(null);
   }
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
 
-    supabase.auth.getSession().then(({data}) => {
-      startTransition(() => {
-        setSession(data.session);
-        setIsLoading(false);
+    supabase.auth
+      .getSession()
+      .then(({data}) => {
+        startTransition(() => {
+          setSession(data.session);
+          setIsLoading(false);
+          setAuthError(null);
+        });
+      })
+      .catch((error) => {
+        startTransition(() => {
+          setSession(null);
+          setUser(null);
+          setIsLoading(false);
+          setAuthError(normalizeAuthError(error));
+        });
       });
-    });
 
     const {
       data: {subscription},
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       startTransition(() => {
         setSession(nextSession);
+        setAuthError(null);
       });
     });
 
@@ -198,6 +239,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
         session,
         user,
         isLoading,
+        authError,
         signIn,
         signUp,
         signOut,
