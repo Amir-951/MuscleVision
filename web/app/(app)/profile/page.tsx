@@ -13,21 +13,36 @@ export default function ProfilePage() {
   const [goal, setGoal] = useState(user?.goal ?? 'general');
   const [heightCm, setHeightCm] = useState(user?.heightCm ? String(user.heightCm) : '');
   const [weightKg, setWeightKg] = useState(user?.weightKg ? String(user.weightKg) : '');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function saveProfile() {
     if (!user?.id) {
       return;
     }
 
-    const supabase = getSupabaseBrowserClient();
-    await supabase.from('users').upsert({
-      id: user.id,
-      display_name: displayName,
-      goal,
-      height_cm: heightCm ? Number(heightCm) : null,
-      weight_kg: weightKg ? Number(weightKg) : null,
-    });
-    await refreshProfile();
+    try {
+      setError(null);
+      setSuccess(null);
+
+      const supabase = getSupabaseBrowserClient();
+      const {error: upsertError} = await supabase.from('users').upsert({
+        id: user.id,
+        display_name: displayName,
+        goal,
+        height_cm: heightCm ? Number(heightCm) : null,
+        weight_kg: weightKg ? Number(weightKg) : null,
+      });
+
+      if (upsertError) {
+        throw upsertError;
+      }
+
+      await refreshProfile();
+      setSuccess('Profil sauvegardé.');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Sauvegarde impossible.');
+    }
   }
 
   return (
@@ -40,6 +55,8 @@ export default function ProfilePage() {
       </div>
 
       <LabCard className="max-w-3xl space-y-4">
+        {error ? <p className="text-sm text-[#ff8d8d]">{error}</p> : null}
+        {success ? <p className="text-sm text-[#b6f7b0]">{success}</p> : null}
         <input
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}

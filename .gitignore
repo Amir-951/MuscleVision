@@ -12,6 +12,10 @@ mobile/.env.*
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.venv/
+.venv*/
+backend/.venv/
+backend/.venv*/
 
 # Node / Next
 node_modules/
@@ -19,6 +23,7 @@ web/.next/
 web/out/
 
 # React Native / build artifacts
+mobile/
 mobile/android/.gradle/
 mobile/android/build/
 mobile/android/app/build/

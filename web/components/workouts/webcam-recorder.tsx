@@ -16,46 +16,58 @@ export function WebcamRecorder({
   const chunksRef = useRef<Blob[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [status, setStatus] = useState('Prêt à capturer une séquence courte.');
+  const [error, setError] = useState<string | null>(null);
 
   async function startRecording() {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: false,
-    });
-
-    streamRef.current = stream;
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-    }
-
-    const recorder = new MediaRecorder(stream, {
-      mimeType: 'video/webm',
-    });
-    recorderRef.current = recorder;
-    chunksRef.current = [];
-
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        chunksRef.current.push(event.data);
-      }
-    };
-
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, {type: 'video/webm'});
-      const file = new File([blob], `capture-${Date.now()}.webm`, {
-        type: 'video/webm',
+    try {
+      setError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
       });
-      onCapture(file);
-      setStatus('Capture prête. Tu peux lancer l’analyse.');
 
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    };
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
 
-    recorder.start();
-    setIsRecording(true);
-    setStatus('Enregistrement en cours. Garde le corps entier dans le cadre.');
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm',
+      });
+      recorderRef.current = recorder;
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, {type: 'video/webm'});
+        const file = new File([blob], `capture-${Date.now()}.webm`, {
+          type: 'video/webm',
+        });
+        onCapture(file);
+        setStatus('Capture prête. Tu peux lancer l’analyse.');
+
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setStatus('Enregistrement en cours. Garde le corps entier dans le cadre.');
+    } catch (startError) {
+      setIsRecording(false);
+      setError(
+        startError instanceof Error
+          ? startError.message
+          : 'Impossible d’accéder à la webcam.',
+      );
+      setStatus('Autorise la webcam puis réessaie.');
+    }
   }
 
   function stopRecording() {
@@ -84,6 +96,7 @@ export function WebcamRecorder({
       </div>
 
       <p className="text-sm text-mist/65">{status}</p>
+      {error ? <p className="text-sm text-[#ff8d8d]">{error}</p> : null}
 
       <div className="flex flex-wrap gap-3">
         {!isRecording ? (
