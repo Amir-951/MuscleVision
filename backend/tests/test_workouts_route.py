@@ -55,6 +55,23 @@ class WorkoutsRouteTests(unittest.TestCase):
 
         self.assertEqual(context.exception.status_code, 202)
 
+    def test_get_workout_result_returns_analysis_failure_detail(self):
+        session = {
+            "id": "session-3",
+            "status": "error",
+            "feedback": "Aucun mouvement humain exploitable détecté dans la vidéo.",
+        }
+
+        with patch("app.api.routes.workouts.fetch_one", return_value=session):
+            with self.assertRaises(HTTPException) as context:
+                asyncio.run(workouts.get_workout_result("session-3"))
+
+        self.assertEqual(context.exception.status_code, 422)
+        self.assertEqual(
+            context.exception.detail,
+            "Aucun mouvement humain exploitable détecté dans la vidéo.",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

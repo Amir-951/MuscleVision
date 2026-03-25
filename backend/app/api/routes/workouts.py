@@ -144,10 +144,14 @@ async def get_job_status(job_id: str):
     }
 
     meta = job.meta or {}
+    status = status_map.get(job.get_status(), "pending")
     return {
-        "status": status_map.get(job.get_status(), "pending"),
+        "status": status,
         "progress": meta.get("progress", 0.0),
-        "message": meta.get("message", "En attente…"),
+        "message": meta.get(
+            "message",
+            "Analyse échouée." if status == "error" else "En attente…",
+        ),
     }
 
 
@@ -158,6 +162,12 @@ async def get_workout_result(session_id: str):
     )
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    if session["status"] == "error":
+        raise HTTPException(
+            status_code=422,
+            detail=session.get("feedback") or "L'analyse a échoué pour cette vidéo.",
+        )
 
     if session["status"] != "done":
         raise HTTPException(status_code=202, detail="Processing not complete")

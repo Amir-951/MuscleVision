@@ -101,11 +101,7 @@ def process_video_job(session_id: str, video_source: str):
         cap.release()
 
         if not all_engagements:
-            execute(
-                "UPDATE workout_sessions SET status = 'error' WHERE id = %s",
-                (session_id,),
-            )
-            return
+            raise ValueError("Aucun mouvement humain exploitable détecté dans la vidéo.")
 
         update_job_progress(0.80, "Calcul du score…")
 
@@ -204,6 +200,20 @@ def process_video_job(session_id: str, video_source: str):
             )
 
         update_job_progress(1.0, "Analyse terminée !")
+
+    except Exception as exc:
+        execute(
+            """
+            UPDATE workout_sessions
+            SET status = 'error',
+                feedback = %s,
+                processed_at = NOW()
+            WHERE id = %s
+            """,
+            (str(exc), session_id),
+        )
+        update_job_progress(1.0, str(exc))
+        raise
 
     finally:
         if should_delete and os.path.exists(tmp_path):
