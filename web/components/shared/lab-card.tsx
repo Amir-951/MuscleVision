@@ -12,11 +12,10 @@ export function LabCard({
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-[30px] border border-white/10 bg-white/5 p-6 shadow-lab backdrop-blur-xl',
+        'soft-vignette relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.018))] p-6 backdrop-blur-xl before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.32),transparent)]',
         className,
       )}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,154,61,0.14),_transparent_45%),radial-gradient(circle_at_bottom,_rgba(233,75,53,0.12),_transparent_38%)]" />
       <div className="relative">{children}</div>
     </div>
   );
