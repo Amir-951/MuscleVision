@@ -3,6 +3,7 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from groq import GroqError
 from pydantic import BaseModel
 
 from ...core.database import fetch_one, fetch_all, execute
@@ -85,11 +86,18 @@ async def send_message(body: MessageRequest):
 
     messages = build_messages(history, body.message, workout_context)
     persona = COACH_PERSONAS[body.coach_id]
-    reply = complete_chat(
-        system_prompt=persona["system_prompt"],
-        messages=messages,
-        max_tokens=320,
-    )
+    try:
+        reply = complete_chat(
+            system_prompt=persona["system_prompt"],
+            messages=messages,
+            max_tokens=320,
+        )
+    except GroqError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Le provider IA du coach ne répond pas actuellement.",
+        ) from exc
+
     if not reply:
         reply = (
             "Je peux t'aider à partir de tes données de séance, "

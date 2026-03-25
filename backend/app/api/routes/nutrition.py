@@ -4,7 +4,7 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from groq import Groq
+from groq import Groq, GroqError
 from pydantic import BaseModel
 
 from ...core.config import settings
@@ -50,34 +50,46 @@ async def analyze_photo(body: PhotoAnalysisRequest):
         raise HTTPException(status_code=503, detail="Groq vision is not configured")
 
     # Télécharger l'image depuis l'URL
-    async with httpx.AsyncClient() as http:
-        img_response = await http.get(body.image_url)
-        if img_response.status_code != 200:
-            raise HTTPException(status_code=400, detail="Could not fetch image")
-        image_data = img_response.content
+    try:
+        async with httpx.AsyncClient() as http:
+            img_response = await http.get(body.image_url)
+            if img_response.status_code != 200:
+                raise HTTPException(status_code=400, detail="Could not fetch image")
+            image_data = img_response.content
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Impossible de télécharger l'image pour l'analyse nutrition.",
+        ) from exc
 
     import base64
     img_b64 = base64.standard_b64encode(image_data).decode("utf-8")
     media_type = img_response.headers.get("content-type", "image/jpeg")
 
-    response = client.chat.completions.create(
-        model=settings.groq_vision_model,
-        max_tokens=512,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{media_type};base64,{img_b64}",
+    try:
+        response = client.chat.completions.create(
+            model=settings.groq_vision_model,
+            max_tokens=512,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{media_type};base64,{img_b64}",
+                            },
                         },
-                    },
-                    {"type": "text", "text": ANALYSIS_PROMPT},
-                ],
-            }
-        ],
-    )
+                        {"type": "text", "text": ANALYSIS_PROMPT},
+                    ],
+                }
+            ],
+        )
+    except GroqError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Le provider IA nutrition ne répond pas actuellement.",
+        ) from exc
 
     try:
         result = json.loads(response.choices[0].message.content)
@@ -100,24 +112,30 @@ async def analyze_photo_file(file: UploadFile = File(...)):
     img_b64 = base64.standard_b64encode(image_data).decode("utf-8")
     media_type = file.content_type or "image/jpeg"
 
-    response = client.chat.completions.create(
-        model=settings.groq_vision_model,
-        max_tokens=512,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{media_type};base64,{img_b64}",
+    try:
+        response = client.chat.completions.create(
+            model=settings.groq_vision_model,
+            max_tokens=512,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{media_type};base64,{img_b64}",
+                            },
                         },
-                    },
-                    {"type": "text", "text": ANALYSIS_PROMPT},
-                ],
-            }
-        ],
-    )
+                        {"type": "text", "text": ANALYSIS_PROMPT},
+                    ],
+                }
+            ],
+        )
+    except GroqError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Le provider IA nutrition ne répond pas actuellement.",
+        ) from exc
 
     try:
         result = json.loads(response.choices[0].message.content)

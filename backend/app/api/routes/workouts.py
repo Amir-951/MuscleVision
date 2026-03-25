@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from redis import Redis
+from redis.exceptions import RedisError
 from rq import Queue
 
 from ...core.config import settings
@@ -55,6 +56,21 @@ def _create_session(
     )
 
 
+def _enqueue_video_job(session_id: str, video_source: str):
+    try:
+        return job_queue.enqueue(
+            process_video_job,
+            session_id=session_id,
+            video_source=video_source,
+            job_timeout=600,
+        )
+    except RedisError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Redis indisponible. Lance redis-server et le worker RQ pour traiter les analyses.",
+        ) from exc
+
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_workout(body: UploadRequest):
     session_id = str(uuid.uuid4())
@@ -66,11 +82,9 @@ async def upload_workout(body: UploadRequest):
         video_format=body.video_format,
     )
 
-    job = job_queue.enqueue(
-        process_video_job,
+    job = _enqueue_video_job(
         session_id=session_id,
         video_source=body.video_url,
-        job_timeout=600,
     )
 
     return UploadResponse(job_id=job.id, session_id=session_id, video_url=body.video_url)
@@ -102,11 +116,9 @@ async def upload_workout_file(
         video_format=video_format or file.content_type,
     )
 
-    job = job_queue.enqueue(
-        process_video_job,
+    job = _enqueue_video_job(
         session_id=session_id,
         video_source=str(upload_path),
-        job_timeout=600,
     )
     return UploadResponse(job_id=job.id, session_id=session_id, video_url=public_url)
 
@@ -116,6 +128,11 @@ async def get_job_status(job_id: str):
     from rq.job import Job
     try:
         job = Job.fetch(job_id, connection=redis_conn)
+    except RedisError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Redis indisponible. Impossible de suivre le job tant que la file n'est pas démarrée.",
+        ) from exc
     except Exception:
         raise HTTPException(status_code=404, detail="Job not found")
 

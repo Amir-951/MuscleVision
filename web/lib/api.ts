@@ -57,6 +57,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
 
     if (!response.ok) {
+      const contentType = response.headers.get('content-type') ?? '';
+      if (contentType.includes('application/json')) {
+        const payload = await response.json().catch(() => null);
+        const detail =
+          payload && typeof payload === 'object' && 'detail' in payload
+            ? String(payload.detail)
+            : null;
+        throw new Error(detail || `API error ${response.status}`);
+      }
+
       const message = await response.text();
       throw new Error(message || `API error ${response.status}`);
     }
