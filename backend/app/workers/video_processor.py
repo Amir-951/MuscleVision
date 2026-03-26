@@ -119,7 +119,7 @@ def process_video_job(session_id: str, video_source: str):
             for muscle in all_muscles
         }
 
-        exercise_type = detect_exercise_type(all_engagements)
+        exercise_type = detect_exercise_type(all_engagements, keypoint_frames)
         score = compute_correctness_score(all_engagements, exercise_type)
         duration_seconds = int(total_frames / max(fps, 1))
         motion_report = summarize_motion_sequence(

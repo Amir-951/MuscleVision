@@ -9,9 +9,19 @@ def _frame(
     elbow_angle: float = 165.0,
     trunk_lean: float = 0.08,
     offset: float = 0.0,
+    shoulder_y: float = 0.46,
+    wrist_y: float = 0.3,
 ) -> dict:
     return {
         "timestamp": 0.0,
+        "keypoints": {
+            "left_shoulder": {"x": 0.42, "y": shoulder_y, "z": 0.0, "visibility": 1.0},
+            "right_shoulder": {"x": 0.58, "y": shoulder_y, "z": 0.0, "visibility": 1.0},
+            "left_wrist": {"x": 0.4, "y": wrist_y, "z": 0.0, "visibility": 1.0},
+            "right_wrist": {"x": 0.6, "y": wrist_y, "z": 0.0, "visibility": 1.0},
+            "left_hip": {"x": 0.45, "y": 0.76, "z": 0.0, "visibility": 1.0},
+            "right_hip": {"x": 0.55, "y": 0.76, "z": 0.0, "visibility": 1.0},
+        },
         "metrics": {
             "elbow_left": elbow_angle,
             "elbow_right": elbow_angle,
@@ -77,6 +87,45 @@ class MovementAnalysisTests(unittest.TestCase):
         self.assertIn("exercise=squat", report["analysis_text"])
         self.assertIn("reps=2", report["analysis_text"])
         self.assertIn("dominant_muscles=quad_left", report["analysis_text"])
+
+    def test_pull_up_rep_count_uses_vertical_peak_signal(self):
+        shoulder_cycle = [0.45, 0.44, 0.42, 0.38, 0.32, 0.28, 0.32, 0.38, 0.42, 0.45]
+        elbow_cycle = [165, 160, 150, 132, 110, 88, 110, 132, 150, 165]
+        frames = [
+            _frame(
+                knee_angle=150.0,
+                hip_angle=155.0,
+                elbow_angle=float(elbow_angle),
+                trunk_lean=0.09 + ((index % 2) * 0.01),
+                shoulder_y=float(shoulder_y),
+                wrist_y=float(shoulder_y - 0.18),
+            )
+            for index, (shoulder_y, elbow_angle) in enumerate(zip(shoulder_cycle * 6, elbow_cycle * 6))
+        ]
+        engagements = [
+            {
+                "lats_left": 0.46,
+                "lats_right": 0.45,
+                "bicep_left": 0.33,
+                "bicep_right": 0.34,
+                "forearm_left": 0.22,
+                "forearm_right": 0.22,
+            }
+            for _ in frames
+        ]
+
+        report = summarize_motion_sequence(
+            frames=frames,
+            all_engagements=engagements,
+            exercise_type="pull_up",
+            correctness_score=84,
+            duration_seconds=18,
+        )
+
+        self.assertEqual(report["rep_count"], 6)
+        self.assertEqual(report["tempo_label"], "3.0s/rep")
+        self.assertIn("exercise=pull_up", report["analysis_text"])
+        self.assertIn("reps=6", report["analysis_text"])
 
 
 if __name__ == "__main__":

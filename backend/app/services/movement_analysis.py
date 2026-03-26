@@ -102,7 +102,15 @@ def _movement_signal(exercise_type: str, frames: list[dict[str, Any]]) -> list[f
     signal = []
     for frame in frames:
         metrics = frame["metrics"]
-        if exercise_type in {"squat", "deadlift"}:
+        if exercise_type == "pull_up":
+            shoulder_mid_y = (
+                frame["keypoints"]["left_shoulder"]["y"]
+                + frame["keypoints"]["right_shoulder"]["y"]
+            ) / 2
+            shoulder_lift = (1 - shoulder_mid_y) * 100
+            elbow_flexion = 180 - ((metrics["elbow_left"] + metrics["elbow_right"]) / 2)
+            signal.append((shoulder_lift * 0.6) + (elbow_flexion * 0.4))
+        elif exercise_type in {"squat", "deadlift"}:
             signal.append(180 - ((metrics["knee_left"] + metrics["knee_right"]) / 2))
         else:
             signal.append(180 - ((metrics["elbow_left"] + metrics["elbow_right"]) / 2))
@@ -114,21 +122,53 @@ def _smooth_signal(values: list[float], window: int = 5) -> list[float]:
         return values
 
     size = min(window, len(values))
+    if size % 2 == 0:
+        size -= 1
+    if size < 3:
+        return values
     kernel = np.ones(size) / size
-    smoothed = np.convolve(np.array(values), kernel, mode="same")
+    padding = size // 2
+    padded = np.pad(np.array(values), (padding, padding), mode="edge")
+    smoothed = np.convolve(padded, kernel, mode="valid")
     return [float(v) for v in smoothed]
 
 
-def _estimate_reps(signal: list[float]) -> int:
+def _estimate_reps(signal: list[float], mode: str = "cycle") -> int:
     if len(signal) < 6:
         return 0
 
-    smoothed = _smooth_signal(signal)
+    smoothed = _smooth_signal(signal, window=7 if mode == "peak" else 5)
     low = min(smoothed)
     high = max(smoothed)
     span = high - low
     if span < 10:
         return 0
+
+    if mode == "peak":
+        prominence = max(span * 0.18, 2.5)
+        gap = max(5, len(smoothed) // 18)
+        peaks: list[int] = []
+
+        for index in range(1, len(smoothed) - 1):
+            if smoothed[index] <= smoothed[index - 1] or smoothed[index] < smoothed[index + 1]:
+                continue
+
+            left = max(0, index - gap)
+            right = min(len(smoothed), index + gap + 1)
+            baseline = min(
+                float(min(smoothed[left:index + 1])),
+                float(min(smoothed[index:right])),
+            )
+            if smoothed[index] - baseline < prominence:
+                continue
+
+            if peaks and index - peaks[-1] < gap:
+                if smoothed[index] > smoothed[peaks[-1]]:
+                    peaks[-1] = index
+                continue
+            peaks.append(index)
+
+        return len(peaks)
 
     enter_bottom = low + span * 0.35
     enter_top = low + span * 0.65
@@ -234,6 +274,11 @@ def _build_alerts(
             alerts.append("pompe_trop_haute")
         if max_trunk > 0.22:
             alerts.append("gainage_a_stabiliser")
+    elif exercise_type == "pull_up":
+        if angle_ranges.get("elbow_left", {}).get("min", 180) > 105 and angle_ranges.get("elbow_right", {}).get("min", 180) > 105:
+            alerts.append("traction_incomplete")
+        if max_trunk > 0.28:
+            alerts.append("balancement_excessif")
     elif exercise_type == "deadlift" and max_trunk > 0.45:
         alerts.append("charniere_hanche_a_renforcer")
     elif exercise_type == "bicep_curl" and amplitude_score < 0.45:
@@ -279,7 +324,8 @@ def summarize_motion_sequence(
 ) -> dict[str, Any]:
     ranges = _angle_ranges(frames)
     signal = _movement_signal(exercise_type, frames)
-    rep_count = _estimate_reps(signal)
+    rep_mode = "peak" if exercise_type == "pull_up" else "cycle"
+    rep_count = _estimate_reps(signal, mode=rep_mode)
     tempo_seconds = round(duration_seconds / rep_count, 2) if rep_count > 0 else float(duration_seconds)
     tempo_label = f"{tempo_seconds:.1f}s/rep" if rep_count > 0 else "single_sequence"
     symmetry_score = _symmetry_score(frames)
