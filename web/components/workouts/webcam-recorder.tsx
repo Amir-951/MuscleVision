@@ -3,8 +3,6 @@
 import {Camera, Square, Video} from 'lucide-react';
 import {useEffect, useRef, useState} from 'react';
 
-import {LabCard} from '@/components/shared/lab-card';
-
 export function WebcamRecorder({
   onCapture,
 }: {
@@ -82,43 +80,71 @@ export function WebcamRecorder({
   }, []);
 
   return (
-    <LabCard className="space-y-4 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.32em] text-mist/45">Capture direct</p>
-          <h3 className="mt-2 text-xl text-ivory">Webcam biomechanics intake</h3>
+    <div className="grid gap-10 xl:grid-cols-[minmax(0,1.18fr)_320px]">
+      <div className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_22%_18%,rgba(137,209,255,0.16),transparent_24%),linear-gradient(180deg,#10141a_0%,#090b0f_100%)]">
+        <div className="absolute inset-0 lab-grid opacity-55" />
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          className="relative aspect-video w-full min-h-[560px] object-cover"
+        />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,transparent,rgba(7,8,11,0.82))] p-8">
+          <p className="text-[11px] uppercase tracking-[0.34em] text-mist/45">Live capture</p>
+          <h3 className="mt-3 font-display text-[2.6rem] leading-[0.9] text-ivory md:text-[3.4rem]">
+            Cadre le corps. Lance. Coupe.
+          </h3>
+          <p className="mt-3 max-w-xl text-base leading-8 text-mist/62">
+            La webcam doit donner la même sensation de maîtrise que l’upload: un plan net, une action claire, aucun bruit de panneau.
+          </p>
         </div>
-        <Camera className="h-5 w-5 text-amber" />
       </div>
 
-      <div className="overflow-hidden rounded-[24px] border border-white/10 bg-black/30">
-        <video ref={videoRef} muted playsInline className="aspect-video w-full object-cover" />
-      </div>
+      <aside className="space-y-8 border-t border-white/10 pt-8 xl:border-l xl:border-t-0 xl:pl-8 xl:pt-0">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Camera className="h-5 w-5 text-amber" />
+            <div>
+              <p className="text-sm text-ivory">Webcam biomechanics intake</p>
+              <p className="text-sm text-mist/55">{status}</p>
+            </div>
+          </div>
 
-      <p className="text-sm text-mist/65">{status}</p>
-      {error ? <p className="text-sm text-[#ff8d8d]">{error}</p> : null}
+          {error ? <p className="text-sm text-[#ff8d8d]">{error}</p> : null}
 
-      <div className="flex flex-wrap gap-3">
-        {!isRecording ? (
-          <button
-            type="button"
-            onClick={() => void startRecording()}
-            className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#e94b35,#ff9a3d)] px-5 py-3 text-sm font-medium text-white"
-          >
-            <Video className="h-4 w-4" />
-            Démarrer
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={stopRecording}
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-medium text-ivory"
-          >
-            <Square className="h-4 w-4" />
-            Arrêter
-          </button>
-        )}
-      </div>
-    </LabCard>
+          <div className="flex flex-wrap gap-3">
+            {!isRecording ? (
+              <button
+                type="button"
+                onClick={() => void startRecording()}
+                className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#e94b35,#ff9a3d)] px-5 py-3 text-sm font-medium text-white"
+              >
+                <Video className="h-4 w-4" />
+                Démarrer
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={stopRecording}
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-medium text-ivory"
+              >
+                <Square className="h-4 w-4" />
+                Arrêter
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-4 border-t border-white/10 pt-6">
+          <p className="text-[11px] uppercase tracking-[0.32em] text-mist/38">Capture notes</p>
+          <p className="text-sm leading-7 text-mist/58">
+            Plein corps visible, lumière stable, peu de mouvement parasite autour du sujet.
+          </p>
+          <p className="text-sm leading-7 text-mist/58">
+            Une séquence courte et nette produit une lecture plus crédible qu’une longue prise confuse.
+          </p>
+        </div>
+      </aside>
+    </div>
   );
 }
