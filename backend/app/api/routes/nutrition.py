@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 from typing import Optional
 
@@ -42,6 +43,36 @@ ANALYSIS_PROMPT = """Analyze this food photo and return a JSON object with these
 }
 
 Return ONLY the JSON object, no other text."""
+
+
+def _extract_json_payload(content: str) -> dict:
+    if not content:
+        raise ValueError("Empty AI response")
+
+    cleaned = content.strip()
+
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    fenced = re.sub(
+        r"^```(?:json)?\s*|\s*```$",
+        "",
+        cleaned,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    try:
+        return json.loads(fenced)
+    except json.JSONDecodeError:
+        pass
+
+    start = fenced.find("{")
+    end = fenced.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("No JSON object found in AI response")
+
+    return json.loads(fenced[start : end + 1])
 
 
 @router.post("/analyze-photo")
@@ -92,8 +123,8 @@ async def analyze_photo(body: PhotoAnalysisRequest):
         ) from exc
 
     try:
-        result = json.loads(response.choices[0].message.content)
-    except (json.JSONDecodeError, IndexError):
+        result = _extract_json_payload(response.choices[0].message.content)
+    except (ValueError, json.JSONDecodeError, IndexError, TypeError):
         raise HTTPException(status_code=500, detail="Failed to parse AI response")
 
     return result
@@ -138,8 +169,8 @@ async def analyze_photo_file(file: UploadFile = File(...)):
         ) from exc
 
     try:
-        result = json.loads(response.choices[0].message.content)
-    except (json.JSONDecodeError, IndexError):
+        result = _extract_json_payload(response.choices[0].message.content)
+    except (ValueError, json.JSONDecodeError, IndexError, TypeError):
         raise HTTPException(status_code=500, detail="Failed to parse AI response")
 
     return result

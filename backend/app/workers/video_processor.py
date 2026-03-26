@@ -6,8 +6,6 @@ import os
 import tempfile
 from pathlib import Path
 
-import cv2
-import mediapipe as mp
 import httpx
 from rq import get_current_job
 
@@ -50,6 +48,11 @@ def process_video_job(session_id: str, video_source: str):
     Job principal : télécharge la vidéo, extrait les keypoints,
     calcule l'engagement musculaire, écrit en base.
     """
+    # Charger MediaPipe/OpenCV au moment du job limite les effets de bord
+    # dans les processus qui importent simplement le module.
+    import cv2
+    import mediapipe as mp
+
     execute(
         "UPDATE workout_sessions SET status = 'processing' WHERE id = %s",
         (session_id,),

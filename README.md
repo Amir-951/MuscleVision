@@ -31,6 +31,9 @@ docker-compose up
 # Sans Docker
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+
+# Worker vidéo
+python -m app.workers.run_worker video_processing --url redis://127.0.0.1:6379
 ```
 
 ### 3. Web app
@@ -95,3 +98,8 @@ npx react-native run-android
 - **3D web** : React Three Fiber mannequin stylisé piloté par l'engagement musculaire
 - **Coach IA** : provider texte via Groq, branché sur le résumé biomécanique compact
 - **Nutrition** : Groq Vision pour reconnaissance photo + journal alimentaire
+
+## Notes macOS
+
+- Sur macOS, lance le worker avec `python -m app.workers.run_worker ...`.
+- Cet entrypoint utilise `SimpleWorker` par défaut sur Darwin pour éviter les crashs `fork` liés aux dépendances natives de l'analyse vidéo.
