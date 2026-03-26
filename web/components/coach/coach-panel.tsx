@@ -1,20 +1,15 @@
 'use client';
 
-import {Bot, RefreshCcw, SendHorizontal} from 'lucide-react';
+import {Bot, RefreshCcw, SendHorizontal, Sparkles} from 'lucide-react';
 import {useEffect, useState} from 'react';
 
+import {CoachAvatarScene} from '@/components/coach/coach-avatar-scene';
+import {coachPersonaList, coachPersonaMap} from '@/components/coach/coach-personas';
 import {useAuth} from '@/components/providers/auth-provider';
 import {LabCard} from '@/components/shared/lab-card';
 import {SectionLabel} from '@/components/shared/section-label';
 import {clearCoachHistory, getCoachHistory, getWorkoutHistory, sendCoachMessage} from '@/lib/api';
 import type {CoachId, CoachMessage, WorkoutHistoryItem} from '@/lib/types';
-
-const personas: {id: CoachId; name: string; tone: string}[] = [
-  {id: 'max', name: 'Max', tone: 'Supportif'},
-  {id: 'sergeant', name: 'Sergent', tone: 'Militaire'},
-  {id: 'dr_reed', name: 'Dr. Reed', tone: 'Scientifique'},
-  {id: 'bro', name: 'Bro', tone: 'Salle'},
-];
 
 export function CoachPanel() {
   const {user} = useAuth();
@@ -24,6 +19,7 @@ export function CoachPanel() {
   const [sessions, setSessions] = useState<WorkoutHistoryItem[]>([]);
   const [linkedSessionId, setLinkedSessionId] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const currentPersona = coachPersonaMap[coachId];
 
   useEffect(() => {
     if (!user?.id) {
@@ -98,14 +94,14 @@ export function CoachPanel() {
       <div className="space-y-3">
         <SectionLabel>Coach Console</SectionLabel>
         <h2 className="font-display text-4xl text-ivory md:text-5xl">
-          Persona engine branché sur le résumé texte de séance.
+          Chaque coach possède maintenant sa présence, sa scène et sa lecture propre de la séance.
         </h2>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[330px_minmax(0,1fr)]">
         <LabCard className="space-y-4">
           <p className="text-xs uppercase tracking-[0.32em] text-mist/45">Persona</p>
-          {personas.map((persona) => (
+          {coachPersonaList.map((persona) => (
             <button
               key={persona.id}
               type="button"
@@ -116,8 +112,17 @@ export function CoachPanel() {
                   : 'border-white/10 bg-black/20 hover:border-white/15'
               }`}
             >
-              <p className="text-lg text-ivory">{persona.name}</p>
-              <p className="text-sm text-mist/60">{persona.tone}</p>
+              <div className="grid gap-4 sm:grid-cols-[112px_minmax(0,1fr)] sm:items-center">
+                <CoachAvatarScene persona={persona} compact className="h-28" />
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-lg text-ivory">{persona.name}</p>
+                    <p className="text-sm text-mist/60">{persona.tone} · {persona.role}</p>
+                  </div>
+                  <p className="text-[11px] uppercase tracking-[0.26em] text-mist/38">{persona.environment}</p>
+                  <p className="text-sm leading-6 text-mist/68">{persona.signal}</p>
+                </div>
+              </div>
             </button>
           ))}
 
@@ -135,6 +140,10 @@ export function CoachPanel() {
                 </option>
               ))}
             </select>
+            <div className="mt-4 rounded-[18px] border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-[10px] uppercase tracking-[0.28em] text-mist/45">Lecture active</p>
+              <p className="mt-2 text-sm leading-6 text-mist/74">{currentPersona.intro}</p>
+            </div>
           </div>
         </LabCard>
 
@@ -142,7 +151,7 @@ export function CoachPanel() {
           <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-mist/45">Conversation</p>
-              <h3 className="mt-1 text-xl text-ivory">{personas.find((persona) => persona.id === coachId)?.name}</h3>
+              <h3 className="mt-1 text-xl text-ivory">{currentPersona.name}</h3>
             </div>
             <button
               type="button"
@@ -154,10 +163,47 @@ export function CoachPanel() {
             </button>
           </div>
 
+          <div className="border-b border-white/10 p-6">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <p className="text-[10px] uppercase tracking-[0.34em] text-mist/45">{currentPersona.role}</p>
+                  <h3 className="max-w-[11ch] font-display text-5xl leading-[0.92] text-ivory md:text-6xl">
+                    {currentPersona.name}
+                  </h3>
+                </div>
+
+                <div className="max-w-xl space-y-3">
+                  <p className="text-base leading-7 text-mist/78">{currentPersona.environmentNote}</p>
+                  <p className="text-sm leading-7 text-mist/62">{currentPersona.signal}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-mist/55">
+                    {currentPersona.environment}
+                  </div>
+                  <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-mist/55">
+                    {currentPersona.tone}
+                  </div>
+                  {linkedSessionId ? (
+                    <div className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-mist/55">
+                      Session liée
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <CoachAvatarScene persona={currentPersona} showMeta />
+            </div>
+          </div>
+
           <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
             {messages.length === 0 ? (
               <div className="flex h-full items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-black/20 text-sm text-mist/55">
-                Le coach attend ton premier message.
+                <div className="max-w-md space-y-3 text-center">
+                  <p className="text-[10px] uppercase tracking-[0.32em] text-mist/40">{currentPersona.environment}</p>
+                  <p className="text-base leading-7 text-mist/72">{currentPersona.intro}</p>
+                </div>
               </div>
             ) : null}
 
@@ -172,8 +218,16 @@ export function CoachPanel() {
               >
                 {message.role === 'assistant' ? (
                   <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-mist/40">
-                    <Bot className="h-3.5 w-3.5" />
-                    Coach
+                    <span
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border"
+                      style={{
+                        borderColor: `${currentPersona.palette.edge}50`,
+                        background: `linear-gradient(135deg, ${currentPersona.palette.accent}44, ${currentPersona.palette.glow}22)`,
+                      }}
+                    >
+                      <Bot className="h-3.5 w-3.5" />
+                    </span>
+                    {currentPersona.name}
                   </div>
                 ) : null}
                 {message.content}
@@ -192,8 +246,12 @@ export function CoachPanel() {
               <button
                 type="button"
                 onClick={() => void handleSend()}
-                className="inline-flex h-fit items-center gap-2 rounded-full bg-[linear-gradient(135deg,#e94b35,#ff9a3d)] px-5 py-3 text-sm font-medium text-white"
+                className="inline-flex h-fit items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-white"
+                style={{
+                  background: `linear-gradient(135deg, ${currentPersona.palette.accent}, ${currentPersona.palette.glow})`,
+                }}
               >
+                <Sparkles className="h-4 w-4" />
                 <SendHorizontal className="h-4 w-4" />
                 Envoyer
               </button>
