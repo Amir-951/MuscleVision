@@ -11,6 +11,25 @@ import {getWorkoutResult} from '@/lib/api';
 import type {WorkoutResult} from '@/lib/types';
 import {MuscleMannequin} from '@/components/workouts/muscle-mannequin';
 
+function humanizeMuscleName(name: string) {
+  return name
+    .replaceAll('_', ' ')
+    .replace(/\bleft\b/g, 'gauche')
+    .replace(/\bright\b/g, 'droite')
+    .replace(/\babs\b/g, 'abdos')
+    .replace(/\bglute\b/g, 'fessier')
+    .replace(/\bquad\b/g, 'quadriceps')
+    .replace(/\bcalf\b/g, 'mollet')
+    .replace(/\bbicep\b/g, 'biceps')
+    .replace(/\btricep\b/g, 'triceps')
+    .replace(/\bdeltoid\b/g, 'deltoide')
+    .replace(/\boblique\b/g, 'oblique')
+    .replace(/\blats\b/g, 'dorsal')
+    .replace(/\bhamstring\b/g, 'ischio')
+    .replace(/\bforearm\b/g, 'avant-bras')
+    .replace(/\btrapezius\b/g, 'trapèze');
+}
+
 export function WorkoutResultView({sessionId}: {sessionId: string}) {
   const [result, setResult] = useState<WorkoutResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +67,11 @@ export function WorkoutResultView({sessionId}: {sessionId: string}) {
     {label: 'Stabilité', value: `${Math.round(result.stabilityScore * 100)}%`},
     {label: 'Reps', value: String(result.repCount)},
   ];
+  const topTargets = Object.entries(result.muscleEngagement)
+    .map(([muscle, value]) => [muscle, value ?? 0] as const)
+    .sort((left, right) => right[1] - left[1])
+    .filter(([, value]) => value > 0.08)
+    .slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -124,9 +148,40 @@ export function WorkoutResultView({sessionId}: {sessionId: string}) {
             <div className="rounded-[28px] border border-white/10 bg-black/20 p-4">
               <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-mist/45">
                 <Orbit className="h-4 w-4 text-amber" />
-                Muscular heat sculpture
+                Zones ciblées
               </div>
-              <MuscleMannequin muscleEngagement={result.muscleEngagement} className="h-[420px] w-full" />
+              <p className="mb-4 max-w-[260px] text-sm leading-7 text-mist/58">
+                Les zones les plus sollicitées par l’exercice détecté passent en rouge sur le mannequin.
+              </p>
+              <MuscleMannequin
+                muscleEngagement={result.muscleEngagement}
+                className="h-[420px] w-full"
+                renderMode="targeted"
+              />
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="text-[11px] uppercase tracking-[0.3em] text-mist/42">
+                  Muscles dominants
+                </p>
+                <div className="mt-3 space-y-3">
+                  {topTargets.length ? (
+                    topTargets.map(([muscle, value]) => (
+                      <div
+                        key={muscle}
+                        className="flex items-center justify-between border-b border-white/8 pb-3 text-sm last:border-b-0 last:pb-0"
+                      >
+                        <span className="text-mist/68">{humanizeMuscleName(muscle)}</span>
+                        <span className="font-medium text-[#ff6b5f]">
+                          {Math.round(value * 100)}%
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-mist/55">
+                      Aucune zone dominante assez nette pour être mise en avant.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </LabCard>

@@ -54,24 +54,70 @@ function heatColor(intensity: number) {
   return color;
 }
 
+function targetedColor(intensity: number) {
+  const dormant = [34, 25, 27];
+  const live = [142, 18, 25];
+  const peak = [255, 59, 48];
+
+  if (intensity < 0.22) {
+    return `rgb(${dormant[0]}, ${dormant[1]}, ${dormant[2]})`;
+  }
+
+  const local = Math.min(1, (intensity - 0.22) / 0.78);
+  const from = local < 0.62 ? dormant : live;
+  const to = local < 0.62 ? live : peak;
+  const eased = local < 0.62 ? local / 0.62 : (local - 0.62) / 0.38;
+  return `rgb(${blendChannel(from[0], to[0], eased)}, ${blendChannel(from[1], to[1], eased)}, ${blendChannel(from[2], to[2], eased)})`;
+}
+
+type RenderMode = 'ambient' | 'targeted';
+
 export function MuscleMannequin({
   muscleEngagement,
   className,
+  renderMode = 'ambient',
 }: {
   muscleEngagement: MuscleEngagement;
   className?: string;
+  renderMode?: RenderMode;
 }) {
+  const zoneEntries = zones.map((zone) => ({
+    zone,
+    rawIntensity: zoneIntensity(muscleEngagement, zone.muscles),
+  }));
+  const maxIntensity = Math.max(...zoneEntries.map((entry) => entry.rawIntensity), 0);
+
   return (
     <div className={className ?? 'h-[480px] w-full'}>
       <Canvas camera={{position: [0, 0.8, 6], fov: 32}}>
-        <ambientLight intensity={1.4} />
-        <directionalLight position={[6, 6, 5]} intensity={2.2} color="#ffd7a6" />
-        <directionalLight position={[-5, -2, 2]} intensity={1.2} color="#f4eee1" />
+        <ambientLight intensity={renderMode === 'targeted' ? 1.1 : 1.4} />
+        <directionalLight
+          position={[6, 6, 5]}
+          intensity={renderMode === 'targeted' ? 1.85 : 2.2}
+          color={renderMode === 'targeted' ? '#ffb7aa' : '#ffd7a6'}
+        />
+        <directionalLight
+          position={[-5, -2, 2]}
+          intensity={renderMode === 'targeted' ? 0.95 : 1.2}
+          color="#f4eee1"
+        />
 
         <group rotation={[0.18, 0.62, 0]}>
-          {zones.map((zone) => {
-            const intensity = zoneIntensity(muscleEngagement, zone.muscles);
-            const color = heatColor(intensity);
+          {zoneEntries.map(({zone, rawIntensity}) => {
+            const normalizedIntensity =
+              renderMode === 'targeted' && maxIntensity > 0
+                ? Math.min(1, rawIntensity / maxIntensity)
+                : rawIntensity;
+            const color =
+              renderMode === 'targeted'
+                ? targetedColor(normalizedIntensity)
+                : heatColor(normalizedIntensity);
+            const emissiveIntensity =
+              renderMode === 'targeted'
+                ? normalizedIntensity < 0.22
+                  ? 0.04
+                  : 0.22 + normalizedIntensity * 0.92
+                : 0.18 + normalizedIntensity * 0.45;
             return (
               <mesh
                 key={zone.id}
@@ -82,10 +128,12 @@ export function MuscleMannequin({
                 <boxGeometry args={[1, 1, 1]} />
                 <meshStandardMaterial
                   color={color}
-                  roughness={0.2}
-                  metalness={0.12}
+                  roughness={renderMode === 'targeted' ? 0.28 : 0.2}
+                  metalness={renderMode === 'targeted' ? 0.08 : 0.12}
                   emissive={color}
-                  emissiveIntensity={0.18 + intensity * 0.45}
+                  emissiveIntensity={emissiveIntensity}
+                  transparent={renderMode === 'targeted'}
+                  opacity={renderMode === 'targeted' ? 0.66 + normalizedIntensity * 0.34 : 1}
                 />
               </mesh>
             );
@@ -93,7 +141,13 @@ export function MuscleMannequin({
 
           <mesh position={[0, -3.85, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[1.7, 2.45, 48]} />
-            <meshStandardMaterial color="#ff9a3d" emissive="#ff9a3d" emissiveIntensity={0.25} transparent opacity={0.4} />
+            <meshStandardMaterial
+              color={renderMode === 'targeted' ? '#ff4b3c' : '#ff9a3d'}
+              emissive={renderMode === 'targeted' ? '#ff4b3c' : '#ff9a3d'}
+              emissiveIntensity={renderMode === 'targeted' ? 0.45 : 0.25}
+              transparent
+              opacity={renderMode === 'targeted' ? 0.5 : 0.4}
+            />
           </mesh>
         </group>
 
