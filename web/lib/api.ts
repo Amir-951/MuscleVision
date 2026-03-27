@@ -5,6 +5,7 @@ import type {
   CoachId,
   CoachMessage,
   NutritionAnalysisResult,
+  WorkoutKeypointsArtifact,
   TodayLogResponse,
   WorkoutHistoryItem,
   WorkoutJobStatus,
@@ -124,6 +125,26 @@ export async function getWorkoutResult(sessionId: string): Promise<WorkoutResult
     feedback: data.feedback,
     muscleEngagement: data.muscle_engagement,
   };
+}
+
+export async function getWorkoutKeypointsArtifact(
+  artifactUrl: string,
+): Promise<WorkoutKeypointsArtifact> {
+  try {
+    const response = await fetch(artifactUrl);
+
+    if (!response.ok) {
+      throw new Error(`Artifact error ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      sessionId: data.session_id,
+      frames: Array.isArray(data.frames) ? data.frames : [],
+    };
+  } catch (error) {
+    throw new Error(normalizeRequestError(error));
+  }
 }
 
 export async function getWorkoutHistory(userId: string): Promise<WorkoutHistoryItem[]> {

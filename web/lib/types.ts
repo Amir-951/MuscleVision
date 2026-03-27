@@ -4,6 +4,24 @@ export type WorkoutJobState = 'pending' | 'processing' | 'done' | 'error';
 
 export type MuscleEngagement = Partial<Record<string, number>>;
 
+export interface PoseKeypoint {
+  x: number;
+  y: number;
+  z: number;
+  visibility?: number;
+}
+
+export interface WorkoutPoseFrame {
+  timestamp: number;
+  keypoints: Record<string, PoseKeypoint>;
+  metrics?: Record<string, number>;
+}
+
+export interface WorkoutKeypointsArtifact {
+  sessionId: string;
+  frames: WorkoutPoseFrame[];
+}
+
 export interface AppUser {
   id: string;
   email: string;

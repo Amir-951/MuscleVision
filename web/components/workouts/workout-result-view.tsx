@@ -9,7 +9,7 @@ import {LabCard} from '@/components/shared/lab-card';
 import {SectionLabel} from '@/components/shared/section-label';
 import {getWorkoutResult} from '@/lib/api';
 import type {WorkoutResult} from '@/lib/types';
-import {MuscleMannequin} from '@/components/workouts/muscle-mannequin';
+import {WorkoutMotionReplay} from '@/components/workouts/workout-motion-replay';
 
 function humanizeMuscleName(name: string) {
   return name
@@ -82,8 +82,7 @@ export function WorkoutResultView({sessionId}: {sessionId: string}) {
             {result.exerciseType.replaceAll('_', ' ')}
           </h2>
           <p className="max-w-2xl text-base text-mist/60">
-            Séance {result.source === 'webcam' ? 'capturée en direct' : 'importée'} et résumée en
-            biomécanique compacte.
+            {result.source === 'webcam' ? 'Capture webcam.' : 'Vidéo importée.'}
           </p>
         </div>
 
@@ -128,8 +127,8 @@ export function WorkoutResultView({sessionId}: {sessionId: string}) {
                 <div className="flex items-center gap-3">
                   <RefreshCw className="h-5 w-5 text-amber" />
                   <div>
-                    <p className="text-sm text-ivory">Feedback coach low-cost</p>
-                    <p className="text-sm text-mist/65">{result.feedback ?? 'Aucun feedback généré.'}</p>
+                    <p className="text-sm text-ivory">Feedback</p>
+                    <p className="text-sm text-mist/65">{result.feedback ?? 'Aucun feedback.'}</p>
                   </div>
                 </div>
               </LabCard>
@@ -150,13 +149,13 @@ export function WorkoutResultView({sessionId}: {sessionId: string}) {
                 <Orbit className="h-4 w-4 text-amber" />
                 Zones ciblées
               </div>
-              <p className="mb-4 max-w-[260px] text-sm leading-7 text-mist/58">
-                Les zones les plus sollicitées par l’exercice détecté passent en rouge sur le mannequin.
+              <p className="mb-4 max-w-[260px] text-sm text-mist/58">
+                Play rejoue le geste et fait monter la tension sur les zones visées.
               </p>
-              <MuscleMannequin
+              <WorkoutMotionReplay
+                exerciseType={result.exerciseType}
+                keypointsArtifactUrl={result.keypointsArtifactUrl}
                 muscleEngagement={result.muscleEngagement}
-                className="h-[420px] w-full"
-                renderMode="targeted"
               />
               <div className="mt-4 border-t border-white/10 pt-4">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-mist/42">
@@ -189,7 +188,7 @@ export function WorkoutResultView({sessionId}: {sessionId: string}) {
         <LabCard className="p-0">
           <div className="border-b border-white/10 px-6 py-4">
             <p className="text-xs uppercase tracking-[0.32em] text-mist/45">analysis.txt</p>
-            <h3 className="mt-2 text-xl text-ivory">Résumé biomécanique compact</h3>
+            <h3 className="mt-2 text-xl text-ivory">Résumé</h3>
           </div>
 
           <ScrollArea.Root className="h-[520px] overflow-hidden">
