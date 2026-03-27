@@ -9,6 +9,7 @@ import {useAuth} from '@/components/providers/auth-provider';
 import {LabCard} from '@/components/shared/lab-card';
 import {SectionLabel} from '@/components/shared/section-label';
 import {clearCoachHistory, getCoachHistory, getWorkoutHistory, sendCoachMessage} from '@/lib/api';
+import {formatScore10From100} from '@/lib/score';
 import type {CoachId, CoachMessage, WorkoutHistoryItem} from '@/lib/types';
 
 export function CoachPanel() {
@@ -93,9 +94,7 @@ export function CoachPanel() {
     <div className="space-y-6">
       <div className="space-y-3">
         <SectionLabel>Coach Console</SectionLabel>
-        <h2 className="font-display text-4xl text-ivory md:text-5xl">
-          Chaque coach possède maintenant sa présence, sa scène et sa lecture propre de la séance.
-        </h2>
+        <h2 className="font-display text-4xl text-ivory md:text-5xl">Choisis un coach.</h2>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[330px_minmax(0,1fr)]">
@@ -120,7 +119,7 @@ export function CoachPanel() {
                     <p className="text-sm text-mist/60">{persona.tone} · {persona.role}</p>
                   </div>
                   <p className="text-[11px] uppercase tracking-[0.26em] text-mist/38">{persona.environment}</p>
-                  <p className="text-sm leading-6 text-mist/68">{persona.signal}</p>
+                  <p className="text-sm text-mist/68">{persona.signal}</p>
                 </div>
               </div>
             </button>
@@ -136,13 +135,13 @@ export function CoachPanel() {
             >
               {sessions.map((session) => (
                 <option key={session.id} value={session.id} className="bg-graphite">
-                  {session.exerciseType ?? 'unknown'} · {session.correctnessScore ?? 0}/100
+                  {session.exerciseType ?? 'unknown'} · {formatScore10From100(session.correctnessScore)}
                 </option>
               ))}
             </select>
             <div className="mt-4 rounded-[18px] border border-white/10 bg-white/[0.03] p-4">
               <p className="text-[10px] uppercase tracking-[0.28em] text-mist/45">Lecture active</p>
-              <p className="mt-2 text-sm leading-6 text-mist/74">{currentPersona.intro}</p>
+              <p className="mt-2 text-sm text-mist/74">{currentPersona.intro}</p>
             </div>
           </div>
         </LabCard>
@@ -174,8 +173,7 @@ export function CoachPanel() {
                 </div>
 
                 <div className="max-w-xl space-y-3">
-                  <p className="text-base leading-7 text-mist/78">{currentPersona.environmentNote}</p>
-                  <p className="text-sm leading-7 text-mist/62">{currentPersona.signal}</p>
+                  <p className="text-base text-mist/78">{currentPersona.environmentNote}</p>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
@@ -202,7 +200,7 @@ export function CoachPanel() {
               <div className="flex h-full items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-black/20 text-sm text-mist/55">
                 <div className="max-w-md space-y-3 text-center">
                   <p className="text-[10px] uppercase tracking-[0.32em] text-mist/40">{currentPersona.environment}</p>
-                  <p className="text-base leading-7 text-mist/72">{currentPersona.intro}</p>
+                  <p className="text-base text-mist/72">{currentPersona.intro}</p>
                 </div>
               </div>
             ) : null}
@@ -240,7 +238,7 @@ export function CoachPanel() {
               <textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                placeholder="Demande une correction de posture, un plan de progression, ou une lecture de la séance liée."
+                placeholder="Demande une correction ou un plan."
                 className="min-h-[110px] flex-1 rounded-[26px] border border-white/10 bg-black/20 px-5 py-4 text-sm text-ivory outline-none placeholder:text-mist/35"
               />
               <button

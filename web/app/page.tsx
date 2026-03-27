@@ -38,47 +38,47 @@ const pipeline = [
   {
     step: '01',
     title: 'Capture',
-    body: 'Upload vidéo ou prise webcam directe. Aucune narration IA à ce stade.',
+    body: 'Vidéo ou webcam.',
   },
   {
     step: '02',
     title: 'Skeleton',
-    body: 'Le pipeline MediaPipe extrait les points du corps et calcule angles, stabilité, tempo et symétrie.',
+    body: 'Points du corps et métriques.',
   },
   {
     step: '03',
     title: 'Compression',
-    body: 'Le mouvement devient `keypoints.json` et `analysis.txt`, deux artefacts légers et auditables.',
+    body: '`keypoints.json` et `analysis.txt`.',
   },
   {
     step: '04',
     title: 'Coaching',
-    body: 'Le petit modèle texte n’analyse que le résumé compact pour produire un feedback moins coûteux.',
+    body: 'Coach branché sur le texte.',
   },
 ];
 
 const details = [
   {
     icon: ScanSearch,
-    title: 'Le signal avant le discours',
-    body: 'Chaque séance est réduite à des variables lisibles. Le langage n’intervient qu’après l’analyse du mouvement.',
+    title: 'Signal brut',
+    body: 'Le mouvement passe avant le texte.',
   },
   {
     icon: BrainCircuit,
-    title: 'Un modèle texte discipliné',
-    body: 'Le coaching ne reçoit ni vidéo ni image brute. Seulement un texte court, dense et contrôlable.',
+    title: 'Texte compact',
+    body: 'Le coach ne lit qu’un résumé court.',
   },
   {
     icon: Orbit,
-    title: 'Une scène 3D utile',
-    body: 'Le mannequin n’est pas décoratif. Il sert de lecture musculaire immédiate pour comprendre l’effort.',
+    title: '3D utile',
+    body: 'Les zones visées se lisent tout de suite.',
   },
 ];
 
 const markers = [
-  {label: 'Symétrie', value: '91%'},
+  {label: 'Symétrie', value: '9.1/10'},
   {label: 'Tempo', value: '2.4s'},
-  {label: 'Score', value: '84/100'},
+  {label: 'Score', value: '8.4/10'},
 ];
 
 export default function LandingPage() {
@@ -135,16 +135,10 @@ export default function LandingPage() {
               <span className="inline-flex items-center border border-white/10 px-4 py-2 text-[11px] uppercase tracking-[0.38em] text-mist/62">
                 Mouvement d’abord
               </span>
-              <p className="text-[11px] uppercase tracking-[0.42em] text-mist/42">
-                Analyse de pose, texte compact, feedback low-cost
-              </p>
               <h1 className="max-w-5xl font-display text-[3.9rem] leading-[0.84] text-ivory sm:text-[5rem] xl:text-[7.3rem]">
-                MuscleVision transforme la vidéo en signal exploitable, pas en prose confuse.
+                MuscleVision lit le mouvement.
               </h1>
-              <p className="max-w-xl text-lg leading-8 text-mist/62">
-                Une scène web pensée comme un atelier d’analyse: capture, extraction de pose,
-                compression biomécanique, lecture 3D et coaching branché sur un texte court.
-              </p>
+              <p className="max-w-xl text-lg text-mist/62">Vidéo, pose, résultat, coach.</p>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -186,8 +180,8 @@ export default function LandingPage() {
             className="relative xl:h-[100svh]"
           >
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.08),_transparent_44%)]" />
-            <div className="absolute left-[8%] top-[14%] hidden max-w-[210px] border-t border-white/10 pt-4 text-sm leading-7 text-mist/58 xl:block">
-              Le modèle texte ne voit jamais la vidéo brute. Le pipeline garde la dépense IA à la dernière étape.
+            <div className="absolute left-[8%] top-[14%] hidden max-w-[210px] border-t border-white/10 pt-4 text-sm text-mist/58 xl:block">
+              La vidéo brute ne part pas au modèle texte.
             </div>
             <div className="absolute bottom-[10%] left-[8%] right-[8%] z-10 hidden gap-4 border-t border-white/10 pt-5 xl:grid xl:grid-cols-3">
               {markers.map((marker) => (
@@ -210,7 +204,7 @@ export default function LandingPage() {
             <div>
               <p className="text-[11px] uppercase tracking-[0.38em] text-mist/45">Pipeline</p>
               <h2 className="mt-4 max-w-sm font-display text-[2.7rem] leading-[0.92] text-ivory md:text-[3.6rem]">
-                Une chaîne nette, sans dépenses inutiles.
+                Une chaîne courte.
               </h2>
             </div>
 
@@ -226,7 +220,7 @@ export default function LandingPage() {
                 >
                   <p className="font-display text-[2.5rem] leading-none text-white/22">{item.step}</p>
                   <h3 className="mt-6 text-xl text-ivory">{item.title}</h3>
-                  <p className="mt-4 text-sm leading-7 text-mist/62">{item.body}</p>
+                  <p className="mt-4 text-sm text-mist/62">{item.body}</p>
                 </motion.div>
               ))}
             </div>
@@ -245,11 +239,9 @@ export default function LandingPage() {
           >
             <p className="text-[11px] uppercase tracking-[0.38em] text-mist/45">Positionnement</p>
             <h2 className="mt-5 max-w-xl font-display text-[2.8rem] leading-[0.92] text-ivory md:text-[4.2rem]">
-              Une interface pensée comme une salle de lecture technique, pas comme une galerie de cartes.
+              Une lecture nette, sans bruit.
             </h2>
-            <p className="mt-6 max-w-lg text-lg leading-8 text-mist/62">
-              Le ton est volontairement retenu. Les mouvements restent au centre, les nombres gardent leur place et l’IA n’occupe pas l’écran à tort.
-            </p>
+            <p className="mt-6 max-w-lg text-lg text-mist/62">Le mouvement reste au centre.</p>
           </motion.div>
 
           <div className="space-y-0 border-t border-white/10">
@@ -269,7 +261,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="text-2xl text-ivory">{item.title}</h3>
-                    <p className="mt-3 max-w-xl text-base leading-8 text-mist/62">{item.body}</p>
+                    <p className="mt-3 max-w-xl text-base text-mist/62">{item.body}</p>
                   </div>
                 </motion.div>
               );
@@ -290,11 +282,9 @@ export default function LandingPage() {
             <div className="space-y-4">
               <p className="text-[11px] uppercase tracking-[0.38em] text-mist/45">Entrée</p>
               <h2 className="max-w-4xl font-display text-[3rem] leading-[0.9] text-ivory md:text-[4.6rem]">
-                Capture un mouvement, réduis-le à l’essentiel, puis laisse le coach parler juste.
+                Capture. Lis. Corrige.
               </h2>
-              <p className="max-w-2xl text-lg leading-8 text-mist/62">
-                Auth web, analyse vidéo, coach et nutrition dans une même scène. Tout est prêt pour passer du prototype mobile à une version web crédible.
-              </p>
+              <p className="max-w-2xl text-lg text-mist/62">Analyse, coach et nutrition dans une même app.</p>
             </div>
 
             <div className="space-y-4">

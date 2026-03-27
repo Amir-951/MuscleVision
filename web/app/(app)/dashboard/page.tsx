@@ -8,6 +8,7 @@ import {useEffect, useState} from 'react';
 import {useAuth} from '@/components/providers/auth-provider';
 import {SectionLabel} from '@/components/shared/section-label';
 import {getWorkoutHistory} from '@/lib/api';
+import {formatScore10From100, formatScore10FromUnit} from '@/lib/score';
 import type {WorkoutHistoryItem} from '@/lib/types';
 
 function formatDate(value?: string) {
@@ -51,7 +52,7 @@ export default function DashboardPage() {
   const latest = history[0];
   const metrics = [
     {label: 'Sessions', value: String(history.length).padStart(2, '0')},
-    {label: 'Score moyen', value: `${averageScore}/100`},
+    {label: 'Score moyen', value: formatScore10From100(averageScore)},
     {label: 'Dernier bloc', value: latest?.repCount ? `${latest.repCount} reps` : '—'},
   ];
 
@@ -70,10 +71,10 @@ export default function DashboardPage() {
               <h1 className="max-w-[10ch] font-display text-[3.8rem] leading-[0.86] text-ivory md:text-[5.8rem]">
                 {latest?.exerciseType ?? 'Première session'}
               </h1>
-              <p className="max-w-2xl text-base leading-8 text-mist/62">
+              <p className="max-w-2xl text-base text-mist/62">
                 {latest
-                  ? `Dernière lecture ${latest.correctnessScore ?? 0}/100, ${latest.repCount ?? 0} répétitions et ${Math.round((latest.symmetryScore ?? 0) * 100)}% de symétrie.`
-                  : 'Lance une première analyse pour remplir la trajectoire et faire apparaître les signaux utiles.'}
+                  ? `${formatScore10From100(latest.correctnessScore)} · ${latest.repCount ?? 0} reps · ${formatScore10FromUnit(latest.symmetryScore)} symétrie`
+                  : 'Lance une première analyse.'}
               </p>
             </div>
 
@@ -165,9 +166,7 @@ export default function DashboardPage() {
                         {formatDate(session.createdAt)}
                       </span>
                     </div>
-                    <p className="max-w-2xl text-sm leading-7 text-mist/56">
-                      {session.feedback ?? 'Artefacts biomécaniques disponibles pour revue.'}
-                    </p>
+                    <p className="max-w-2xl text-sm text-mist/56">{session.feedback ?? 'Résultat disponible.'}</p>
                   </div>
 
                   <div className="space-y-2 text-sm text-mist/56">
@@ -179,7 +178,7 @@ export default function DashboardPage() {
                   <div className="space-y-3 text-sm text-mist/56">
                     <div className="flex items-center justify-between">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-mist/34">Score</p>
-                      <p className="text-ivory">{session.correctnessScore ?? 0}/100</p>
+                      <p className="text-ivory">{formatScore10From100(session.correctnessScore)}</p>
                     </div>
                     <div className="h-1 overflow-hidden rounded-full bg-white/6">
                       <div
@@ -187,7 +186,7 @@ export default function DashboardPage() {
                         style={{width: `${score}%`}}
                       />
                     </div>
-                    <p>{Math.round((session.symmetryScore ?? 0) * 100)}% symétrie</p>
+                    <p>{formatScore10FromUnit(session.symmetryScore)} symétrie</p>
                   </div>
                 </Link>
               );
@@ -208,33 +207,22 @@ export default function DashboardPage() {
           <div className="space-y-5">
             <Link href="/analyse" className="block border-b border-white/10 pb-5 transition hover:text-amber">
               <p className="text-lg text-ivory">Lancer une capture</p>
-              <p className="mt-2 text-sm leading-7 text-mist/56">
-                Vidéo uploadée ou webcam. Le pipeline compact repart ici.
-              </p>
+              <p className="mt-2 text-sm text-mist/56">Vidéo ou webcam.</p>
             </Link>
             <Link href="/coach" className="block border-b border-white/10 pb-5 transition hover:text-amber">
               <p className="text-lg text-ivory">Ouvrir le coach</p>
-              <p className="mt-2 text-sm leading-7 text-mist/56">
-                Reprendre une séance via son résumé biomécanique.
-              </p>
+              <p className="mt-2 text-sm text-mist/56">Reprendre une séance liée.</p>
             </Link>
             <Link href="/nutrition" className="block transition hover:text-amber">
               <p className="text-lg text-ivory">Tenir le journal</p>
-              <p className="mt-2 text-sm leading-7 text-mist/56">
-                Ajouter une photo repas et continuer le suivi quotidien.
-              </p>
+              <p className="mt-2 text-sm text-mist/56">Ajouter un repas.</p>
             </Link>
           </div>
         </div>
 
         <div className="space-y-4 border-t border-white/10 pt-6">
-          <p className="text-[11px] uppercase tracking-[0.34em] text-mist/38">Method</p>
-          <p className="text-sm leading-7 text-mist/58">
-            `keypoints.json` alimente l’audit, `analysis.txt` alimente le coach, l’interface reste centrée sur la décision utile.
-          </p>
-          <p className="text-sm leading-7 text-mist/58">
-            La vidéo brute ne nourrit pas le texte. Le produit doit rester rapide à lire et crédible à opérer.
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.34em] text-mist/38">Pipeline</p>
+          <p className="text-sm text-mist/58">Vidéo → pose → résultat.</p>
         </div>
       </aside>
     </div>

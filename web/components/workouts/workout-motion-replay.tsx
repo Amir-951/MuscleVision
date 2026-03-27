@@ -1,6 +1,6 @@
 'use client';
 
-import {LoaderCircle, Pause, Play, RotateCcw} from 'lucide-react';
+import {Gauge, LoaderCircle, Pause, Play, RotateCcw} from 'lucide-react';
 import {useEffect, useRef, useState} from 'react';
 
 import {getWorkoutKeypointsArtifact} from '@/lib/api';
@@ -9,6 +9,13 @@ import {MuscleMannequin} from '@/components/workouts/muscle-mannequin';
 
 function interpolateNumeric(start: number, end: number, amount: number) {
   return start + ((end - start) * amount);
+}
+
+function formatTime(seconds: number) {
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainder = totalSeconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
 }
 
 function computeSignal(frame: WorkoutPoseFrame, exerciseType: string) {
@@ -182,10 +189,12 @@ export function WorkoutMotionReplay({
   exerciseType,
   keypointsArtifactUrl,
   muscleEngagement,
+  viewportClassName,
 }: {
   exerciseType: string;
   keypointsArtifactUrl?: string | null;
   muscleEngagement: MuscleEngagement;
+  viewportClassName?: string;
 }) {
   const [frames, setFrames] = useState<WorkoutPoseFrame[]>([]);
   const [tensions, setTensions] = useState<number[]>([]);
@@ -193,7 +202,11 @@ export function WorkoutMotionReplay({
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackTime, setPlaybackTime] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const startTimeRef = useRef(0);
+  const originTimeRef = useRef(0);
+  const resumeAfterSeekRef = useRef(false);
+  const rateOptions = [0.5, 1, 1.5, 2];
 
   useEffect(() => {
     if (!keypointsArtifactUrl) {
@@ -217,6 +230,7 @@ export function WorkoutMotionReplay({
         setFrames(payload.frames);
         setTensions(normalizeSignals(payload.frames, exerciseType));
         setPlaybackTime(0);
+        setPlaybackRate(1);
         setIsPlaying(false);
       } catch (loadError) {
         if (!cancelled) {
@@ -253,11 +267,13 @@ export function WorkoutMotionReplay({
       return;
     }
 
-    startTimeRef.current = performance.now() - playbackTime * 1000;
+    startTimeRef.current = performance.now();
+    originTimeRef.current = playbackTime;
     let frameHandle = 0;
 
     const tick = () => {
-      const nextPlaybackTime = (performance.now() - startTimeRef.current) / 1000;
+      const elapsed = (performance.now() - startTimeRef.current) / 1000;
+      const nextPlaybackTime = originTimeRef.current + (elapsed * playbackRate);
 
       if (nextPlaybackTime >= duration) {
         setPlaybackTime(duration);
@@ -274,7 +290,7 @@ export function WorkoutMotionReplay({
     return () => {
       window.cancelAnimationFrame(frameHandle);
     };
-  }, [duration, isPlaying, playbackTime]);
+  }, [duration, isPlaying, playbackRate, playbackTime]);
 
   const progress = duration > 0 ? Math.min(1, playbackTime / duration) : 0;
   const displayEngagement =
@@ -299,43 +315,44 @@ export function WorkoutMotionReplay({
   function handleRestart() {
     setPlaybackTime(0);
     setIsPlaying(false);
+    originTimeRef.current = 0;
+  }
+
+  function handleSeek(nextValue: number) {
+    const clamped = Math.max(0, Math.min(duration, nextValue));
+    setPlaybackTime(clamped);
+    originTimeRef.current = clamped;
+    startTimeRef.current = performance.now();
+  }
+
+  function handleSeekStart() {
+    resumeAfterSeekRef.current = isPlaying;
+    setIsPlaying(false);
+  }
+
+  function handleSeekEnd() {
+    if (resumeAfterSeekRef.current && playbackTime < duration) {
+      startTimeRef.current = performance.now();
+      originTimeRef.current = playbackTime;
+      setIsPlaying(true);
+    }
+    resumeAfterSeekRef.current = false;
+  }
+
+  function handleCycleSpeed() {
+    const currentIndex = rateOptions.indexOf(playbackRate);
+    const nextRate = rateOptions[(currentIndex + 1) % rateOptions.length];
+    setPlaybackRate(nextRate);
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="space-y-2">
         <div>
           <p className="text-xs uppercase tracking-[0.28em] text-mist/45">Movement replay</p>
           <p className="mt-2 text-sm text-mist/60">
             {frames.length ? 'Lecture issue de keypoints.json' : 'Replay indisponible'}
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleTogglePlay}
-            disabled={!frames.length || isLoading}
-            className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#e94b35,#ff9a3d)] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {isLoading ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : isPlaying ? (
-              <Pause className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-            {isPlaying ? 'Pause' : 'Play'}
-          </button>
-          <button
-            type="button"
-            onClick={handleRestart}
-            disabled={!frames.length}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2.5 text-sm text-mist/70 transition hover:border-white/20 hover:text-ivory disabled:opacity-50"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Rejouer
-          </button>
         </div>
       </div>
 
@@ -344,14 +361,68 @@ export function WorkoutMotionReplay({
       <div className="overflow-hidden rounded-[28px] border border-white/10 bg-black/20">
         <MuscleMannequin
           muscleEngagement={displayEngagement}
-          className="h-[440px] w-full"
+          className={viewportClassName ?? 'h-[440px] w-full'}
           renderMode="targeted"
           poseFrame={currentFrame}
           tension={currentTension}
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3 rounded-[24px] border border-white/10 bg-black/20 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleTogglePlay}
+              disabled={!frames.length || isLoading}
+              className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#e94b35,#ff9a3d)] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {isLoading ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : isPlaying ? (
+                <Pause className="h-4 w-4" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              {isPlaying ? 'Pause' : 'Play'}
+            </button>
+            <button
+              type="button"
+              onClick={handleRestart}
+              disabled={!frames.length}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2.5 text-sm text-mist/70 transition hover:border-white/20 hover:text-ivory disabled:opacity-50"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Rejouer
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCycleSpeed}
+            disabled={!frames.length}
+            className="inline-flex min-w-[86px] items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-2.5 text-sm text-mist/70 transition hover:border-white/20 hover:text-ivory disabled:opacity-50"
+          >
+            <Gauge className="h-4 w-4" />
+            {playbackRate}x
+          </button>
+        </div>
+
+        <input
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={0.01}
+          value={playbackTime}
+          onPointerDown={handleSeekStart}
+          onPointerUp={handleSeekEnd}
+          onChange={(event) => {
+            handleSeek(Number(event.target.value));
+          }}
+          disabled={!frames.length}
+          aria-label="Contrôle du replay"
+          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/8 accent-[#ff7a50] disabled:cursor-not-allowed disabled:opacity-50"
+        />
         <div className="h-1.5 overflow-hidden rounded-full bg-white/6">
           <div
             className="h-full rounded-full bg-[linear-gradient(90deg,#ff5a46,#ffb15f)] transition-all"
@@ -359,9 +430,9 @@ export function WorkoutMotionReplay({
           />
         </div>
         <div className="flex items-center justify-between text-xs uppercase tracking-[0.22em] text-mist/42">
-          <span>{playbackTime.toFixed(1)}s</span>
+          <span>{formatTime(playbackTime)}</span>
           <span>Tension {Math.round(currentTension * 100)}%</span>
-          <span>{duration.toFixed(1)}s</span>
+          <span>{formatTime(duration)}</span>
         </div>
       </div>
     </div>
