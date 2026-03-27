@@ -78,9 +78,7 @@ export function NutritionPanel() {
           <h1 className="max-w-[11ch] font-display text-[3.2rem] leading-[0.88] text-ivory md:text-[4.8rem]">
             Photo, lecture, journal.
           </h1>
-          <p className="max-w-2xl text-base leading-8 text-mist/62">
-            La nutrition doit ressembler à une routine claire: capturer un repas, confirmer la lecture, l’inscrire dans la journée.
-          </p>
+          <p className="max-w-2xl text-base text-mist/62">Prends une photo. Vérifie. Enregistre.</p>
         </div>
 
         <label className="group relative flex min-h-[520px] cursor-pointer overflow-hidden rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_22%_18%,rgba(196,255,115,0.14),transparent_24%),linear-gradient(180deg,#10141a_0%,#090b0f_100%)]">
@@ -94,9 +92,7 @@ export function NutritionPanel() {
               <h2 className="max-w-[10ch] font-display text-[2.7rem] leading-[0.9] text-ivory md:text-[3.8rem]">
                 Dépose une photo de repas.
               </h2>
-              <p className="max-w-xl text-base leading-8 text-mist/64">
-                Une image entre, une lecture macro sort, puis le log du jour se met à jour sans détour.
-              </p>
+              <p className="max-w-xl text-base text-mist/64">Un repas. Une lecture macro.</p>
             </div>
 
             <div className="space-y-4">
@@ -130,7 +126,7 @@ export function NutritionPanel() {
             <div className="space-y-3 border-b border-white/10 pb-5 md:border-b-0 md:pb-0">
               <p className="text-[11px] uppercase tracking-[0.3em] text-mist/38">Plat détecté</p>
               <p className="text-3xl text-ivory">{analysis.dishName}</p>
-              <p className="text-sm leading-7 text-mist/58">{analysis.notes}</p>
+              <p className="text-sm text-mist/58">{analysis.notes}</p>
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">

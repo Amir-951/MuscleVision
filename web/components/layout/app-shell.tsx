@@ -15,9 +15,8 @@ const navigation = [
     label: 'Pulse',
     cue: 'Overview',
     icon: Sparkles,
-    eyebrow: 'Performance overview',
-    summary: 'Dernier signal, trajectoire moyenne et prochaines actions sans bruit visuel.',
-    detail: 'Le tableau de bord doit orienter immédiatement, pas décorer.',
+    eyebrow: 'Overview',
+    summary: 'Dernier signal et prochaines actions.',
     accent: '#ff9a3d',
     glow: 'radial-gradient(circle at 78% 28%, rgba(255,154,61,0.24), transparent 28%)',
   },
@@ -26,9 +25,8 @@ const navigation = [
     label: 'Analyse',
     cue: 'Capture',
     icon: Activity,
-    eyebrow: 'Motion intake',
-    summary: 'Une surface de capture nette, un suivi de pipeline lisible et un seul geste principal.',
-    detail: 'On veut donner envie de lancer une vidéo, pas de lire une doc produit.',
+    eyebrow: 'Capture',
+    summary: 'Importer, enregistrer, suivre le traitement.',
     accent: '#89d1ff',
     glow: 'radial-gradient(circle at 72% 30%, rgba(137,209,255,0.22), transparent 30%)',
   },
@@ -37,9 +35,8 @@ const navigation = [
     label: 'Coach',
     cue: 'Dialogue',
     icon: Dumbbell,
-    eyebrow: 'Persona coaching',
-    summary: 'Chaque coach doit exister comme présence et pas comme simple variante textuelle.',
-    detail: 'L’identité visuelle doit soutenir la conversation, pas l’encombrer.',
+    eyebrow: 'Dialogue',
+    summary: 'Choisir un coach et reprendre une séance.',
     accent: '#ff8dc0',
     glow: 'radial-gradient(circle at 78% 26%, rgba(255,141,192,0.22), transparent 28%)',
   },
@@ -48,9 +45,8 @@ const navigation = [
     label: 'Nutrition',
     cue: 'Food log',
     icon: Salad,
-    eyebrow: 'Meal intake',
-    summary: 'Analyse photo, macros et journal du jour doivent se lire comme un poste de suivi simple.',
-    detail: 'La photo est le geste d’entrée, le journal la preuve de continuité.',
+    eyebrow: 'Food log',
+    summary: 'Photo, macros, journal du jour.',
     accent: '#c4ff73',
     glow: 'radial-gradient(circle at 74% 30%, rgba(196,255,115,0.2), transparent 28%)',
   },
@@ -59,9 +55,8 @@ const navigation = [
     label: 'Profil',
     cue: 'Identity',
     icon: User2,
-    eyebrow: 'Athlete settings',
-    summary: 'Le profil doit ressembler à une fiche d’athlète, pas à un formulaire brut.',
-    detail: 'Peu de champs, beaucoup de clarté, un état enregistré sans friction.',
+    eyebrow: 'Identity',
+    summary: 'Identité et objectif actif.',
     accent: '#f4eee1',
     glow: 'radial-gradient(circle at 76% 28%, rgba(244,238,225,0.16), transparent 28%)',
   },
@@ -105,9 +100,7 @@ export function AppShell({children}: {children: ReactNode}) {
               <h1 className="font-display text-[2rem] leading-none text-ivory">Operator</h1>
               <div className="h-2.5 w-2.5 rounded-full bg-amber shadow-[0_0_20px_rgba(245,162,70,0.8)]" />
             </div>
-            <p className="mt-4 max-w-[190px] text-sm leading-7 text-mist/52">
-              Une interface de pilotage athlétique, plus calme qu’un dashboard et plus vivante qu’un back-office.
-            </p>
+            <p className="mt-4 max-w-[190px] text-sm text-mist/52">Studio d’analyse et de suivi.</p>
           </div>
 
           <nav className="flex-1 px-3 py-5">
@@ -176,25 +169,19 @@ export function AppShell({children}: {children: ReactNode}) {
               initial={{opacity: 0, y: 16}}
               animate={{opacity: 1, y: 0}}
               transition={{duration: 0.38, ease: 'easeOut'}}
-              className="relative grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px]"
+              className="relative flex flex-col gap-5"
             >
               <div className="space-y-5">
                 <p className="text-[11px] uppercase tracking-[0.38em] text-mist/38">{currentItem.eyebrow}</p>
                 <h2 className="font-display text-[3.2rem] leading-[0.88] text-ivory md:text-[4.4rem]">
                   {currentItem.label}
                 </h2>
-                <p className="max-w-2xl text-base leading-8 text-mist/62">{currentItem.summary}</p>
+                <p className="max-w-2xl text-base text-mist/62">{currentItem.summary}</p>
               </div>
 
-              <div className="grid gap-4 self-end text-sm">
-                <div className="border-t border-white/10 pt-4">
-                  <p className="text-[11px] uppercase tracking-[0.28em] text-mist/40">Workspace note</p>
-                  <p className="mt-3 max-w-[320px] leading-7 text-mist/60">{currentItem.detail}</p>
-                </div>
-                <div className="border-t border-white/10 pt-4">
-                  <p className="text-[11px] uppercase tracking-[0.28em] text-mist/40">Active profile</p>
-                  <p className="mt-3 text-ivory">{user?.displayName ?? user?.email ?? 'Athlete'}</p>
-                </div>
+              <div className="flex flex-wrap items-center gap-5 border-t border-white/10 pt-4 text-sm">
+                <span className="text-[11px] uppercase tracking-[0.28em] text-mist/40">Profil</span>
+                <span className="text-mist/70">{user?.displayName ?? user?.email ?? 'Athlete'}</span>
               </div>
             </motion.div>
           </header>

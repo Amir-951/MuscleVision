@@ -33,14 +33,8 @@ export default function LoginPage() {
   return (
     <AuthStage
       label="Access node"
-      title="Reviens dans la salle de contrôle biomécanique."
-      description="Retrouve tes sessions, tes métriques compactes, ton coach et la lecture musculaire 3D sans quitter le même espace."
-      detailHeading="Ce que tu retrouves"
-      detailItems={[
-        'Historique des analyses et résultats dérivés depuis les keypoints.',
-        'Dialogue coach appuyé sur `analysis.txt` plutôt que sur la vidéo brute.',
-        'Journal nutrition et surfaces de suivi dans une même interface.',
-      ]}
+      title="Connexion."
+      description="Retrouve tes sessions et tes résultats."
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="border-b border-white/10 pb-5">

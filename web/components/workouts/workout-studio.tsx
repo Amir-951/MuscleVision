@@ -118,18 +118,14 @@ export function WorkoutStudio() {
         <div className="space-y-4">
           <SectionLabel>Motion intake</SectionLabel>
           <h1 className="max-w-4xl font-display text-[3.1rem] leading-[0.88] text-ivory md:text-[4.8rem]">
-            Capture propre. Lecture rapide. Coût serré.
+            Importe ou enregistre.
           </h1>
-          <p className="max-w-2xl text-base leading-8 text-mist/62">
-            Le geste principal doit rester évident: entrer une vidéo, suivre l’extraction, ouvrir le résultat.
-          </p>
+          <p className="max-w-2xl text-base text-mist/62">Une entrée. Un résultat.</p>
         </div>
 
         <div className="border-t border-white/10 pt-4 lg:max-w-[320px] lg:border-t-0 lg:pt-0">
           <p className="text-[11px] uppercase tracking-[0.32em] text-mist/38">Pipeline</p>
-          <p className="mt-3 text-sm leading-7 text-mist/58">
-            Pose extraction, compression biomécanique, puis texte low-cost. Une seule chaîne, lisible de bout en bout.
-          </p>
+          <p className="mt-3 text-sm text-mist/58">Extraction, métriques, résultat.</p>
         </div>
       </motion.div>
 
@@ -183,9 +179,7 @@ export function WorkoutStudio() {
                   <h2 className="font-display text-[2.6rem] leading-[0.9] text-ivory md:text-[3.6rem]">
                     Dépose une vidéo plein corps.
                   </h2>
-                  <p className="text-base leading-8 text-mist/64">
-                    Le cadre doit rassurer avant même l’analyse: un seul plan, une seule action, un seul résultat attendu.
-                  </p>
+                  <p className="text-base text-mist/64">Cadre net. Sujet entier.</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4">
@@ -247,15 +241,15 @@ export function WorkoutStudio() {
               <div className="space-y-4 border-t border-white/10 pt-6">
                 <p className="text-[11px] uppercase tracking-[0.32em] text-mist/38">Flow</p>
                 {[
-                  'Importer ou capturer une source propre.',
-                  'Extraire les points corporels et dériver les angles.',
-                  'Comprimer le mouvement en texte utilisable par le coach.',
+                  'Entrée vidéo.',
+                  'Extraction de pose.',
+                  'Résultat et coach.',
                 ].map((step, index) => (
                   <div key={step} className="flex gap-4">
                     <span className="w-6 text-[11px] uppercase tracking-[0.26em] text-mist/34">
                       0{index + 1}
                     </span>
-                    <p className="text-sm leading-7 text-mist/58">{step}</p>
+                    <p className="text-sm text-mist/58">{step}</p>
                   </div>
                 ))}
               </div>
@@ -264,7 +258,7 @@ export function WorkoutStudio() {
                 <p className="text-[11px] uppercase tracking-[0.32em] text-mist/38">Budget IA</p>
                 <div className="inline-flex items-center gap-2 text-sm text-mist/60">
                   <Sparkles className="h-4 w-4 text-amber" />
-                  Pose extraction → analysis.txt → coach texte
+                  `analysis.txt` → coach
                 </div>
               </div>
             </motion.aside>

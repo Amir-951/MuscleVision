@@ -59,9 +59,7 @@ export default function ProfilePage() {
           <h1 className="max-w-[10ch] font-display text-[3.4rem] leading-[0.88] text-ivory md:text-[4.8rem]">
             Fiche athlète.
           </h1>
-          <p className="max-w-2xl text-base leading-8 text-mist/62">
-            Peu de champs, une lecture claire, une identité plus proche d’un dossier athlétique que d’un formulaire standard.
-          </p>
+          <p className="max-w-2xl text-base text-mist/62">Identité, objectif, mensurations.</p>
         </div>
 
         <div className="space-y-5">
@@ -144,9 +142,6 @@ export default function ProfilePage() {
           >
             Sauvegarder
           </button>
-          <p className="text-sm leading-7 text-mist/56">
-            Le profil doit rester court et opérable. Ce panneau ne sert qu’à fixer l’identité et l’objectif actif.
-          </p>
         </div>
       </aside>
     </div>

@@ -11,6 +11,73 @@ function interpolateNumeric(start: number, end: number, amount: number) {
   return start + ((end - start) * amount);
 }
 
+function smoothFrames(frames: WorkoutPoseFrame[]) {
+  return frames.map((frame, index) => {
+    const smoothedKeypoints: WorkoutPoseFrame['keypoints'] = {};
+    const smoothedMetrics: WorkoutPoseFrame['metrics'] = {};
+    const keyNames = Object.keys(frame.keypoints);
+    const metricNames = Object.keys(frame.metrics ?? {});
+
+    keyNames.forEach((name) => {
+      let x = 0;
+      let y = 0;
+      let z = 0;
+      let visibility = 0;
+      let weightTotal = 0;
+
+      for (let offset = -2; offset <= 2; offset += 1) {
+        const candidate = frames[index + offset]?.keypoints[name];
+        if (!candidate) {
+          continue;
+        }
+
+        const weight = offset === 0 ? 0.42 : Math.abs(offset) === 1 ? 0.22 : 0.07;
+        x += candidate.x * weight;
+        y += candidate.y * weight;
+        z += candidate.z * weight;
+        visibility += (candidate.visibility ?? 1) * weight;
+        weightTotal += weight;
+      }
+
+      if (weightTotal <= 0) {
+        smoothedKeypoints[name] = frame.keypoints[name];
+        return;
+      }
+
+      smoothedKeypoints[name] = {
+        x: x / weightTotal,
+        y: y / weightTotal,
+        z: z / weightTotal,
+        visibility: visibility / weightTotal,
+      };
+    });
+
+    metricNames.forEach((name) => {
+      let total = 0;
+      let weightTotal = 0;
+
+      for (let offset = -2; offset <= 2; offset += 1) {
+        const candidate = frames[index + offset]?.metrics?.[name];
+        if (typeof candidate !== 'number') {
+          continue;
+        }
+
+        const weight = offset === 0 ? 0.42 : Math.abs(offset) === 1 ? 0.22 : 0.07;
+        total += candidate * weight;
+        weightTotal += weight;
+      }
+
+      smoothedMetrics[name] = weightTotal > 0 ? total / weightTotal : frame.metrics?.[name] ?? 0;
+    });
+
+    return {
+      timestamp: frame.timestamp,
+      keypoints: smoothedKeypoints,
+      metrics: smoothedMetrics,
+    };
+  });
+}
+
 function formatTime(seconds: number) {
   const totalSeconds = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(totalSeconds / 60);
@@ -227,8 +294,9 @@ export function WorkoutMotionReplay({
           return;
         }
 
-        setFrames(payload.frames);
-        setTensions(normalizeSignals(payload.frames, exerciseType));
+        const smoothedFrames = smoothFrames(payload.frames);
+        setFrames(smoothedFrames);
+        setTensions(normalizeSignals(smoothedFrames, exerciseType));
         setPlaybackTime(0);
         setPlaybackRate(1);
         setIsPlaying(false);

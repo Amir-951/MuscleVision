@@ -94,9 +94,7 @@ export function WebcamRecorder({
           <h3 className="mt-3 font-display text-[2.6rem] leading-[0.9] text-ivory md:text-[3.4rem]">
             Cadre le corps. Lance. Coupe.
           </h3>
-          <p className="mt-3 max-w-xl text-base leading-8 text-mist/62">
-            La webcam doit donner la même sensation de maîtrise que l’upload: un plan net, une action claire, aucun bruit de panneau.
-          </p>
+          <p className="mt-3 max-w-xl text-base text-mist/62">Séquence courte. Corps visible.</p>
         </div>
       </div>
 
@@ -137,12 +135,7 @@ export function WebcamRecorder({
 
         <div className="space-y-4 border-t border-white/10 pt-6">
           <p className="text-[11px] uppercase tracking-[0.32em] text-mist/38">Capture notes</p>
-          <p className="text-sm leading-7 text-mist/58">
-            Plein corps visible, lumière stable, peu de mouvement parasite autour du sujet.
-          </p>
-          <p className="text-sm leading-7 text-mist/58">
-            Une séquence courte et nette produit une lecture plus crédible qu’une longue prise confuse.
-          </p>
+          <p className="text-sm text-mist/58">Plein corps. Lumière stable. Fond calme.</p>
         </div>
       </aside>
     </div>

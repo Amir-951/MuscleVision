@@ -58,14 +58,8 @@ export default function SignupPage() {
   return (
     <AuthStage
       label="New athlete"
-      title="Ouvre un studio personnel pour analyser le corps en mouvement."
-      description="La version web rassemble capture, lecture biomécanique, coaching texte et nutrition dans une scène cohérente et professionnelle."
-      detailHeading="Dès l’ouverture"
-      detailItems={[
-        'Vidéo uploadée ou webcam envoyée vers le backend existant.',
-        'Résumé biomécanique compact utilisable par un modèle texte moins coûteux.',
-        'Espace privé pour résultats, historique, coach et journal nutrition.',
-      ]}
+      title="Créer un compte."
+      description="Commence en quelques champs."
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="border-b border-white/10 pb-5">

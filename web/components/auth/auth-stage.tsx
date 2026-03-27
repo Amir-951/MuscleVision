@@ -8,8 +8,8 @@ type AuthStageProps = {
   label: string;
   title: string;
   description: string;
-  detailHeading: string;
-  detailItems: string[];
+  detailHeading?: string;
+  detailItems?: string[];
   children: ReactNode;
 };
 
@@ -18,7 +18,7 @@ export function AuthStage({
   title,
   description,
   detailHeading,
-  detailItems,
+  detailItems = [],
   children,
 }: AuthStageProps) {
   return (
@@ -41,9 +41,7 @@ export function AuthStage({
         <div className="hidden items-center gap-4 text-xs uppercase tracking-[0.28em] text-mist/45 md:flex">
           <span>web app</span>
           <span className="h-px w-8 bg-white/10" />
-          <span>pose analytics</span>
-          <span className="h-px w-8 bg-white/10" />
-          <span>low-cost ai</span>
+          <span>movement</span>
         </div>
       </header>
 
@@ -54,31 +52,33 @@ export function AuthStage({
           transition={{duration: 0.7}}
           className="flex min-h-full flex-col justify-between gap-10"
         >
-          <div className="space-y-6">
+          <div className="space-y-5">
             <span className="inline-flex items-center border border-white/10 px-4 py-2 text-[11px] uppercase tracking-[0.36em] text-mist/62">
               {label}
             </span>
-            <div className="space-y-5">
+            <div className="space-y-4">
               <h1 className="max-w-4xl font-display text-[3.35rem] leading-[0.9] text-ivory md:text-[5.5rem]">
                 {title}
               </h1>
-              <p className="max-w-xl text-lg leading-8 text-mist/64">{description}</p>
+              <p className="max-w-xl text-lg text-mist/64">{description}</p>
             </div>
           </div>
 
-          <div className="grid gap-6 border-t border-white/10 pt-8 md:grid-cols-[220px_minmax(0,1fr)]">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.36em] text-mist/42">{detailHeading}</p>
+          {detailItems.length ? (
+            <div className="grid gap-6 border-t border-white/10 pt-8 md:grid-cols-[220px_minmax(0,1fr)]">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.36em] text-mist/42">{detailHeading}</p>
+              </div>
+              <div className="space-y-3">
+                {detailItems.map((item) => (
+                  <div key={item} className="flex items-start gap-3 border-b border-white/8 pb-3 last:border-b-0">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-amber" />
+                    <p className="text-sm text-mist/64">{item}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="space-y-3">
-              {detailItems.map((item) => (
-                <div key={item} className="flex items-start gap-3 border-b border-white/8 pb-3 last:border-b-0">
-                  <span className="mt-1 h-2 w-2 rounded-full bg-amber" />
-                  <p className="text-sm leading-7 text-mist/64">{item}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          ) : null}
         </motion.div>
 
         <motion.div
