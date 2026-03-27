@@ -7,6 +7,10 @@ import {getWorkoutKeypointsArtifact} from '@/lib/api';
 import type {MuscleEngagement, WorkoutPoseFrame} from '@/lib/types';
 import {MuscleMannequin} from '@/components/workouts/muscle-mannequin';
 
+function interpolateNumeric(start: number, end: number, amount: number) {
+  return start + ((end - start) * amount);
+}
+
 function computeSignal(frame: WorkoutPoseFrame, exerciseType: string) {
   const metrics = frame.metrics ?? {};
   const leftShoulder = frame.keypoints.left_shoulder;
@@ -38,28 +42,120 @@ function computeSignal(frame: WorkoutPoseFrame, exerciseType: string) {
   return 180 - (((metrics.elbow_left ?? 180) + (metrics.elbow_right ?? 180)) / 2);
 }
 
+function smoothValues(values: number[]) {
+  return values.map((_, index) => {
+    let total = 0;
+    let weightTotal = 0;
+
+    for (let offset = -2; offset <= 2; offset += 1) {
+      const target = values[index + offset];
+      if (typeof target !== 'number') {
+        continue;
+      }
+
+      const weight = offset === 0 ? 0.42 : Math.abs(offset) === 1 ? 0.22 : 0.07;
+      total += target * weight;
+      weightTotal += weight;
+    }
+
+    return weightTotal > 0 ? total / weightTotal : values[index];
+  });
+}
+
 function normalizeSignals(frames: WorkoutPoseFrame[], exerciseType: string) {
-  const values = frames.map((frame) => computeSignal(frame, exerciseType));
+  const values = smoothValues(frames.map((frame) => computeSignal(frame, exerciseType)));
   const min = Math.min(...values, 0);
   const max = Math.max(...values, 1);
   const span = Math.max(1, max - min);
   return values.map((value) => Math.max(0, Math.min(1, (value - min) / span)));
 }
 
-function frameIndexAtTime(frames: WorkoutPoseFrame[], playbackTime: number) {
+function frameWindowAtTime(frames: WorkoutPoseFrame[], playbackTime: number) {
   if (!frames.length) {
-    return -1;
+    return null;
   }
 
   for (let index = 0; index < frames.length - 1; index += 1) {
     const current = frames[index];
     const next = frames[index + 1];
     if (playbackTime >= current.timestamp && playbackTime < next.timestamp) {
-      return index;
+      const span = Math.max(0.0001, next.timestamp - current.timestamp);
+      return {
+        index,
+        nextIndex: index + 1,
+        progress: Math.max(0, Math.min(1, (playbackTime - current.timestamp) / span)),
+      };
     }
   }
 
-  return frames.length - 1;
+  return {
+    index: frames.length - 1,
+    nextIndex: frames.length - 1,
+    progress: 0,
+  };
+}
+
+function interpolateFrame(
+  frames: WorkoutPoseFrame[],
+  playbackTime: number,
+) {
+  const window = frameWindowAtTime(frames, playbackTime);
+  if (!window) {
+    return {frame: null, window: null};
+  }
+
+  const current = frames[window.index];
+  const next = frames[window.nextIndex];
+
+  if (!next || window.index === window.nextIndex) {
+    return {frame: current, window};
+  }
+
+  const keypoints: WorkoutPoseFrame['keypoints'] = {};
+  const metrics: WorkoutPoseFrame['metrics'] = {};
+  const names = new Set([
+    ...Object.keys(current.keypoints),
+    ...Object.keys(next.keypoints),
+  ]);
+
+  names.forEach((name) => {
+    const start = current.keypoints[name];
+    const end = next.keypoints[name] ?? start;
+    if (!start) {
+      return;
+    }
+
+    keypoints[name] = {
+      x: interpolateNumeric(start.x, end.x, window.progress),
+      y: interpolateNumeric(start.y, end.y, window.progress),
+      z: interpolateNumeric(start.z, end.z, window.progress),
+      visibility: interpolateNumeric(start.visibility ?? 1, end.visibility ?? start.visibility ?? 1, window.progress),
+    };
+  });
+
+  const metricNames = new Set([
+    ...Object.keys(current.metrics ?? {}),
+    ...Object.keys(next.metrics ?? {}),
+  ]);
+
+  metricNames.forEach((name) => {
+    const start = current.metrics?.[name];
+    const end = next.metrics?.[name];
+    if (typeof start !== 'number') {
+      return;
+    }
+
+    metrics[name] = interpolateNumeric(start, typeof end === 'number' ? end : start, window.progress);
+  });
+
+  return {
+    frame: {
+      timestamp: playbackTime,
+      keypoints,
+      metrics,
+    },
+    window,
+  };
 }
 
 function applyTension(
@@ -73,7 +169,10 @@ function applyTension(
       return;
     }
 
-    next[muscle] = Math.min(1, value * (0.48 + tension * 0.92));
+    next[muscle] = Math.min(
+      1,
+      (value * 0.42) + (value * tension * 1.48) + (value > 0.08 ? tension * 0.16 : 0),
+    );
   });
 
   return next;
@@ -140,11 +239,14 @@ export function WorkoutMotionReplay({
   }, [exerciseType, keypointsArtifactUrl]);
 
   const duration = frames.at(-1)?.timestamp ?? 0;
-  const currentFrameIndex = frameIndexAtTime(frames, playbackTime);
-  const currentFrame =
-    currentFrameIndex >= 0 ? frames[currentFrameIndex] : null;
-  const currentTension =
-    currentFrameIndex >= 0 ? tensions[currentFrameIndex] ?? 0 : 0;
+  const {frame: currentFrame, window: currentWindow} = interpolateFrame(frames, playbackTime);
+  const currentTension = currentWindow
+    ? interpolateNumeric(
+      tensions[currentWindow.index] ?? 0,
+      tensions[currentWindow.nextIndex] ?? tensions[currentWindow.index] ?? 0,
+      currentWindow.progress,
+    )
+    : 0;
 
   useEffect(() => {
     if (!isPlaying || duration <= 0) {

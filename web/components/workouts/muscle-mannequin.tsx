@@ -1,100 +1,90 @@
 'use client';
 
+import {OrbitControls} from '@react-three/drei';
 import {Canvas} from '@react-three/fiber';
-import {Line, OrbitControls} from '@react-three/drei';
 
 import type {MuscleEngagement, PoseKeypoint, WorkoutPoseFrame} from '@/lib/types';
 
-type Zone = {
-  id: string;
-  muscles: string[];
-  position: [number, number, number];
-  scale: [number, number, number];
-  rotation?: [number, number, number];
+type ScenePoint = [number, number, number];
+
+type PosePoints = {
+  left_shoulder: ScenePoint;
+  right_shoulder: ScenePoint;
+  left_elbow: ScenePoint;
+  right_elbow: ScenePoint;
+  left_wrist: ScenePoint;
+  right_wrist: ScenePoint;
+  left_hip: ScenePoint;
+  right_hip: ScenePoint;
+  left_knee: ScenePoint;
+  right_knee: ScenePoint;
+  left_ankle: ScenePoint;
+  right_ankle: ScenePoint;
 };
 
-const zones: Zone[] = [
-  {id: 'head', muscles: ['neck'], position: [0, 1.82, 0], scale: [0.42, 0.42, 0.42]},
-  {id: 'chest', muscles: ['chest_left', 'chest_right'], position: [0, 1.18, 0], scale: [1.02, 0.86, 0.42]},
-  {id: 'core', muscles: ['abs_upper', 'abs_lower', 'oblique_left', 'oblique_right'], position: [0, 0.36, 0], scale: [0.8, 1.32, 0.34]},
-  {id: 'shoulder_left', muscles: ['deltoid_left', 'trapezius_left'], position: [-0.84, 1.24, 0], scale: [0.42, 0.46, 0.36]},
-  {id: 'shoulder_right', muscles: ['deltoid_right', 'trapezius_right'], position: [0.84, 1.24, 0], scale: [0.42, 0.46, 0.36]},
-  {id: 'bicep_left', muscles: ['bicep_left', 'tricep_left', 'forearm_left'], position: [-1.1, 0.52, 0], scale: [0.36, 1.3, 0.3], rotation: [0, 0, -0.22]},
-  {id: 'bicep_right', muscles: ['bicep_right', 'tricep_right', 'forearm_right'], position: [1.1, 0.52, 0], scale: [0.36, 1.3, 0.3], rotation: [0, 0, 0.22]},
-  {id: 'glute_left', muscles: ['glute_left', 'hamstring_left'], position: [-0.34, -0.76, 0], scale: [0.42, 0.82, 0.38]},
-  {id: 'glute_right', muscles: ['glute_right', 'hamstring_right'], position: [0.34, -0.76, 0], scale: [0.42, 0.82, 0.38]},
-  {id: 'quad_left', muscles: ['quad_left', 'calf_left'], position: [-0.34, -2.18, 0], scale: [0.44, 1.84, 0.32]},
-  {id: 'quad_right', muscles: ['quad_right', 'calf_right'], position: [0.34, -2.18, 0], scale: [0.44, 1.84, 0.32]},
-  {id: 'lats_left', muscles: ['lats_left'], position: [-0.6, 0.74, -0.16], scale: [0.38, 1.08, 0.28]},
-  {id: 'lats_right', muscles: ['lats_right'], position: [0.6, 0.74, -0.16], scale: [0.38, 1.08, 0.28]},
-];
+type MaterialPreset = {
+  color: string;
+  emissive: string;
+  emissiveIntensity: number;
+  opacity: number;
+  roughness: number;
+  metalness: number;
+};
 
-const poseConnections: Array<[string, string]> = [
-  ['left_shoulder', 'right_shoulder'],
-  ['left_shoulder', 'left_elbow'],
-  ['left_elbow', 'left_wrist'],
-  ['right_shoulder', 'right_elbow'],
-  ['right_elbow', 'right_wrist'],
-  ['left_shoulder', 'left_hip'],
-  ['right_shoulder', 'right_hip'],
-  ['left_hip', 'right_hip'],
-  ['left_hip', 'left_knee'],
-  ['left_knee', 'left_ankle'],
-  ['right_hip', 'right_knee'],
-  ['right_knee', 'right_ankle'],
-];
+type MuscleSegment = {
+  id: string;
+  muscles: string[];
+  start: ScenePoint;
+  end: ScenePoint;
+  radius: number;
+};
 
-function blendChannel(from: number, to: number, intensity: number) {
-  return Math.round(from + (to - from) * intensity);
-}
-
-function zoneIntensity(muscleEngagement: MuscleEngagement, muscles: string[]) {
-  if (!muscles.length) {
-    return 0;
-  }
-
-  const total = muscles.reduce((sum, muscle) => sum + (muscleEngagement[muscle] ?? 0), 0);
-  return Math.min(1, total / muscles.length);
-}
-
-function heatColor(intensity: number) {
-  const cool = [242, 236, 226];
-  const hot = [233, 75, 53];
-  const ember = [255, 154, 61];
-  const threshold = Math.min(1, intensity * 1.2);
-  const from = intensity < 0.5 ? cool : ember;
-  const to = intensity < 0.5 ? ember : hot;
-  const local = intensity < 0.5 ? threshold : (threshold - 0.5) * 2;
-  const color = `rgb(${blendChannel(from[0], to[0], local)}, ${blendChannel(from[1], to[1], local)}, ${blendChannel(from[2], to[2], local)})`;
-  return color;
-}
-
-function targetedColor(intensity: number) {
-  const dormant = [34, 25, 27];
-  const live = [142, 18, 25];
-  const peak = [255, 59, 48];
-
-  if (intensity < 0.22) {
-    return `rgb(${dormant[0]}, ${dormant[1]}, ${dormant[2]})`;
-  }
-
-  const local = Math.min(1, (intensity - 0.22) / 0.78);
-  const from = local < 0.62 ? dormant : live;
-  const to = local < 0.62 ? live : peak;
-  const eased = local < 0.62 ? local / 0.62 : (local - 0.62) / 0.38;
-  return `rgb(${blendChannel(from[0], to[0], eased)}, ${blendChannel(from[1], to[1], eased)}, ${blendChannel(from[2], to[2], eased)})`;
-}
+type MuscleOrb = {
+  id: string;
+  muscles: string[];
+  center: ScenePoint;
+  radius: number;
+};
 
 type RenderMode = 'ambient' | 'targeted';
 
-type ScenePoint = [number, number, number];
+const defaultPose: PosePoints = {
+  left_shoulder: [-0.74, 1.16, 0.04],
+  right_shoulder: [0.74, 1.16, 0.04],
+  left_elbow: [-1.08, 0.4, 0.08],
+  right_elbow: [1.08, 0.4, 0.08],
+  left_wrist: [-1.12, -0.44, 0.12],
+  right_wrist: [1.12, -0.44, 0.12],
+  left_hip: [-0.42, -0.04, 0.02],
+  right_hip: [0.42, -0.04, 0.02],
+  left_knee: [-0.32, -1.62, 0.04],
+  right_knee: [0.32, -1.62, 0.04],
+  left_ankle: [-0.28, -3.08, 0.08],
+  right_ankle: [0.28, -3.08, 0.08],
+};
 
-function toScenePoint(point: PoseKeypoint): ScenePoint {
-  return [
-    (0.5 - point.x) * 5.2,
-    ((0.52 - point.y) * 5.6) - 0.8,
-    -point.z * 2.35,
-  ];
+function blendChannel(from: number, to: number, intensity: number) {
+  return Math.round(from + ((to - from) * intensity));
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function shift(point: ScenePoint, x = 0, y = 0, z = 0): ScenePoint {
+  return [point[0] + x, point[1] + y, point[2] + z];
+}
+
+function addPoint(a: ScenePoint, b: ScenePoint): ScenePoint {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
+function subtractPoint(a: ScenePoint, b: ScenePoint): ScenePoint {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+}
+
+function scalePoint(point: ScenePoint, factor: number): ScenePoint {
+  return [point[0] * factor, point[1] * factor, point[2] * factor];
 }
 
 function midpoint(a: ScenePoint, b: ScenePoint): ScenePoint {
@@ -113,27 +103,252 @@ function mixPoint(a: ScenePoint, b: ScenePoint, amount: number): ScenePoint {
   ];
 }
 
+function magnitude(point: ScenePoint) {
+  return Math.sqrt((point[0] ** 2) + (point[1] ** 2) + (point[2] ** 2));
+}
+
+function normalizePoint(point: ScenePoint, fallback: ScenePoint): ScenePoint {
+  const length = magnitude(point);
+  if (length < 0.0001) {
+    const fallbackLength = magnitude(fallback);
+    if (fallbackLength < 0.0001) {
+      return [0, 1, 0];
+    }
+    return [
+      fallback[0] / fallbackLength,
+      fallback[1] / fallbackLength,
+      fallback[2] / fallbackLength,
+    ];
+  }
+
+  return [point[0] / length, point[1] / length, point[2] / length];
+}
+
 function distance(a: ScenePoint, b: ScenePoint) {
-  return Math.sqrt(
-    ((b[0] - a[0]) ** 2) +
-      ((b[1] - a[1]) ** 2) +
-      ((b[2] - a[2]) ** 2),
-  );
+  return magnitude(subtractPoint(b, a));
 }
 
 function segmentRotation(a: ScenePoint, b: ScenePoint): [number, number, number] {
+  const dx = b[0] - a[0];
   const dy = b[1] - a[1];
   const dz = b[2] - a[2];
+  const yaw = Math.atan2(dx, dz === 0 ? 0.0001 : dz);
+  const pitch = Math.atan2(Math.sqrt((dx ** 2) + (dz ** 2)), dy === 0 ? 0.0001 : dy);
+  return [0, -yaw, pitch];
+}
+
+const defaultShoulderMid = midpoint(defaultPose.left_shoulder, defaultPose.right_shoulder);
+const defaultHipMid = midpoint(defaultPose.left_hip, defaultPose.right_hip);
+const defaultMeasurements = {
+  shoulderWidth: distance(defaultPose.left_shoulder, defaultPose.right_shoulder),
+  hipWidth: distance(defaultPose.left_hip, defaultPose.right_hip),
+  torsoHeight: distance(defaultShoulderMid, defaultHipMid),
+  upperArmLeft: distance(defaultPose.left_shoulder, defaultPose.left_elbow),
+  upperArmRight: distance(defaultPose.right_shoulder, defaultPose.right_elbow),
+  forearmLeft: distance(defaultPose.left_elbow, defaultPose.left_wrist),
+  forearmRight: distance(defaultPose.right_elbow, defaultPose.right_wrist),
+  thighLeft: distance(defaultPose.left_hip, defaultPose.left_knee),
+  thighRight: distance(defaultPose.right_hip, defaultPose.right_knee),
+  shinLeft: distance(defaultPose.left_knee, defaultPose.left_ankle),
+  shinRight: distance(defaultPose.right_knee, defaultPose.right_ankle),
+};
+
+const defaultDirections = {
+  shoulders: subtractPoint(defaultPose.right_shoulder, defaultPose.left_shoulder),
+  hips: subtractPoint(defaultPose.right_hip, defaultPose.left_hip),
+  torso: subtractPoint(defaultHipMid, defaultShoulderMid),
+  upperArmLeft: subtractPoint(defaultPose.left_elbow, defaultPose.left_shoulder),
+  upperArmRight: subtractPoint(defaultPose.right_elbow, defaultPose.right_shoulder),
+  forearmLeft: subtractPoint(defaultPose.left_wrist, defaultPose.left_elbow),
+  forearmRight: subtractPoint(defaultPose.right_wrist, defaultPose.right_elbow),
+  thighLeft: subtractPoint(defaultPose.left_knee, defaultPose.left_hip),
+  thighRight: subtractPoint(defaultPose.right_knee, defaultPose.right_hip),
+  shinLeft: subtractPoint(defaultPose.left_ankle, defaultPose.left_knee),
+  shinRight: subtractPoint(defaultPose.right_ankle, defaultPose.right_knee),
+};
+
+function zoneIntensity(muscleEngagement: MuscleEngagement, muscles: string[]) {
+  if (!muscles.length) {
+    return 0;
+  }
+
+  const total = muscles.reduce((sum, muscle) => sum + (muscleEngagement[muscle] ?? 0), 0);
+  return Math.min(1, total / muscles.length);
+}
+
+function heatColor(intensity: number) {
+  const cool = [242, 236, 226];
+  const ember = [255, 154, 61];
+  const hot = [233, 75, 53];
+  const threshold = Math.min(1, intensity);
+  const from = threshold < 0.58 ? cool : ember;
+  const to = threshold < 0.58 ? ember : hot;
+  const local = threshold < 0.58 ? threshold / 0.58 : (threshold - 0.58) / 0.42;
+  return `rgb(${blendChannel(from[0], to[0], local)}, ${blendChannel(from[1], to[1], local)}, ${blendChannel(from[2], to[2], local)})`;
+}
+
+function targetedColor(intensity: number) {
+  const dormant = [54, 37, 40];
+  const live = [158, 28, 34];
+  const peak = [255, 92, 64];
+
+  if (intensity < 0.05) {
+    return `rgb(${dormant[0]}, ${dormant[1]}, ${dormant[2]})`;
+  }
+
+  const local = Math.min(1, (intensity - 0.05) / 0.95);
+  const from = local < 0.62 ? dormant : live;
+  const to = local < 0.62 ? live : peak;
+  const eased = local < 0.62 ? local / 0.62 : (local - 0.62) / 0.38;
+  return `rgb(${blendChannel(from[0], to[0], eased)}, ${blendChannel(from[1], to[1], eased)}, ${blendChannel(from[2], to[2], eased)})`;
+}
+
+function toScenePoint(point: PoseKeypoint): ScenePoint {
   return [
-    -Math.atan2(dz, Math.abs(dy) + 0.001) * 0.72,
-    0,
-    Math.atan2(b[0] - a[0], dy + 0.001),
+    (0.5 - point.x) * 5.0,
+    ((0.54 - point.y) * 5.35) - 0.72,
+    -point.z * 1.8,
   ];
 }
 
-function posePoints(poseFrame?: WorkoutPoseFrame | null) {
+function constrainChild(
+  parent: ScenePoint,
+  rawChild: ScenePoint,
+  targetLength: number,
+  fallbackDirection: ScenePoint,
+) {
+  const direction = normalizePoint(
+    subtractPoint(rawChild, parent),
+    fallbackDirection,
+  );
+  return addPoint(parent, scalePoint(direction, targetLength));
+}
+
+function stabilizePose(rawPose: PosePoints): PosePoints {
+  const rawShoulderMid = midpoint(rawPose.left_shoulder, rawPose.right_shoulder);
+  const rawHipMid = midpoint(rawPose.left_hip, rawPose.right_hip);
+
+  const shoulderScale = clamp(
+    distance(rawPose.left_shoulder, rawPose.right_shoulder) / defaultMeasurements.shoulderWidth,
+    0.86,
+    1.18,
+  );
+  const hipScale = clamp(
+    distance(rawPose.left_hip, rawPose.right_hip) / defaultMeasurements.hipWidth,
+    0.88,
+    1.18,
+  );
+  const torsoScale = clamp(
+    distance(rawShoulderMid, rawHipMid) / defaultMeasurements.torsoHeight,
+    0.9,
+    1.18,
+  );
+  const limbScale = clamp((shoulderScale + hipScale + torsoScale) / 3, 0.92, 1.16);
+
+  const shoulderAxis = normalizePoint(
+    subtractPoint(rawPose.right_shoulder, rawPose.left_shoulder),
+    defaultDirections.shoulders,
+  );
+  const hipAxis = normalizePoint(
+    subtractPoint(rawPose.right_hip, rawPose.left_hip),
+    defaultDirections.hips,
+  );
+  const torsoAxis = normalizePoint(
+    subtractPoint(rawHipMid, rawShoulderMid),
+    defaultDirections.torso,
+  );
+
+  const shoulderMid = rawShoulderMid;
+  const hipMid = addPoint(
+    shoulderMid,
+    scalePoint(torsoAxis, defaultMeasurements.torsoHeight * torsoScale),
+  );
+
+  const left_shoulder = addPoint(
+    shoulderMid,
+    scalePoint(shoulderAxis, -(defaultMeasurements.shoulderWidth * shoulderScale) / 2),
+  );
+  const right_shoulder = addPoint(
+    shoulderMid,
+    scalePoint(shoulderAxis, (defaultMeasurements.shoulderWidth * shoulderScale) / 2),
+  );
+  const left_hip = addPoint(
+    hipMid,
+    scalePoint(hipAxis, -(defaultMeasurements.hipWidth * hipScale) / 2),
+  );
+  const right_hip = addPoint(
+    hipMid,
+    scalePoint(hipAxis, (defaultMeasurements.hipWidth * hipScale) / 2),
+  );
+
+  const left_elbow = constrainChild(
+    left_shoulder,
+    rawPose.left_elbow,
+    defaultMeasurements.upperArmLeft * limbScale,
+    defaultDirections.upperArmLeft,
+  );
+  const right_elbow = constrainChild(
+    right_shoulder,
+    rawPose.right_elbow,
+    defaultMeasurements.upperArmRight * limbScale,
+    defaultDirections.upperArmRight,
+  );
+  const left_wrist = constrainChild(
+    left_elbow,
+    rawPose.left_wrist,
+    defaultMeasurements.forearmLeft * limbScale,
+    defaultDirections.forearmLeft,
+  );
+  const right_wrist = constrainChild(
+    right_elbow,
+    rawPose.right_wrist,
+    defaultMeasurements.forearmRight * limbScale,
+    defaultDirections.forearmRight,
+  );
+  const left_knee = constrainChild(
+    left_hip,
+    rawPose.left_knee,
+    defaultMeasurements.thighLeft * limbScale,
+    defaultDirections.thighLeft,
+  );
+  const right_knee = constrainChild(
+    right_hip,
+    rawPose.right_knee,
+    defaultMeasurements.thighRight * limbScale,
+    defaultDirections.thighRight,
+  );
+  const left_ankle = constrainChild(
+    left_knee,
+    rawPose.left_ankle,
+    defaultMeasurements.shinLeft * limbScale,
+    defaultDirections.shinLeft,
+  );
+  const right_ankle = constrainChild(
+    right_knee,
+    rawPose.right_ankle,
+    defaultMeasurements.shinRight * limbScale,
+    defaultDirections.shinRight,
+  );
+
+  return {
+    left_shoulder,
+    right_shoulder,
+    left_elbow,
+    right_elbow,
+    left_wrist,
+    right_wrist,
+    left_hip,
+    right_hip,
+    left_knee,
+    right_knee,
+    left_ankle,
+    right_ankle,
+  };
+}
+
+function resolvePose(poseFrame?: WorkoutPoseFrame | null): PosePoints {
   if (!poseFrame) {
-    return null;
+    return defaultPose;
   }
 
   const required = [
@@ -153,11 +368,11 @@ function posePoints(poseFrame?: WorkoutPoseFrame | null) {
 
   for (const key of required) {
     if (!poseFrame.keypoints[key]) {
-      return null;
+      return defaultPose;
     }
   }
 
-  return {
+  return stabilizePose({
     left_shoulder: toScenePoint(poseFrame.keypoints.left_shoulder),
     right_shoulder: toScenePoint(poseFrame.keypoints.right_shoulder),
     left_elbow: toScenePoint(poseFrame.keypoints.left_elbow),
@@ -170,189 +385,94 @@ function posePoints(poseFrame?: WorkoutPoseFrame | null) {
     right_knee: toScenePoint(poseFrame.keypoints.right_knee),
     left_ankle: toScenePoint(poseFrame.keypoints.left_ankle),
     right_ankle: toScenePoint(poseFrame.keypoints.right_ankle),
+  });
+}
+
+function shellMaterial(tension: number, targeted: boolean): MaterialPreset {
+  return {
+    color: targeted ? '#dccfc6' : '#efe6dc',
+    emissive: targeted ? '#8f6955' : '#665246',
+    emissiveIntensity: targeted ? 0.08 + (tension * 0.1) : 0.05,
+    opacity: targeted ? 0.28 : 0.62,
+    roughness: 0.58,
+    metalness: 0.04,
   };
 }
 
-function resolveAnimatedZone(
-  zone: Zone,
-  poseFrame?: WorkoutPoseFrame | null,
-): Zone {
-  const points = posePoints(poseFrame);
-  if (!points) {
-    return zone;
-  }
+function muscleMaterial(
+  intensity: number,
+  tension: number,
+  targeted: boolean,
+): MaterialPreset {
+  const effective = targeted
+    ? Math.min(1, (intensity * 0.52) + (intensity * tension * 1.4) + (intensity > 0.08 ? tension * 0.18 : 0))
+    : intensity;
+  const color = targeted ? targetedColor(effective) : heatColor(effective);
 
-  const shoulderMid = midpoint(points.left_shoulder, points.right_shoulder);
-  const hipMid = midpoint(points.left_hip, points.right_hip);
-  const shoulderWidth = distance(points.left_shoulder, points.right_shoulder);
-  const torsoHeight = distance(shoulderMid, hipMid);
-  const torsoRotation = segmentRotation(shoulderMid, hipMid);
-
-  switch (zone.id) {
-    case 'head':
-      return {
-        ...zone,
-        position: [
-          shoulderMid[0],
-          shoulderMid[1] + shoulderWidth * 0.82,
-          shoulderMid[2] - 0.02,
-        ] as [number, number, number],
-        scale: [
-          Math.max(0.32, shoulderWidth * 0.72),
-          Math.max(0.32, shoulderWidth * 0.72),
-          0.4,
-        ] as [number, number, number],
-        rotation: torsoRotation,
-      };
-    case 'chest':
-      return {
-        ...zone,
-        position: mixPoint(shoulderMid, hipMid, 0.28),
-        scale: [
-          Math.max(0.86, shoulderWidth * 1.28),
-          Math.max(0.58, torsoHeight * 0.34),
-          0.42,
-        ] as [number, number, number],
-        rotation: torsoRotation,
-      };
-    case 'core':
-      return {
-        ...zone,
-        position: mixPoint(shoulderMid, hipMid, 0.64),
-        scale: [
-          Math.max(0.66, shoulderWidth),
-          Math.max(0.9, torsoHeight * 0.7),
-          0.34,
-        ] as [number, number, number],
-        rotation: torsoRotation,
-      };
-    case 'shoulder_left':
-      return {
-        ...zone,
-        position: points.left_shoulder,
-        scale: [0.36, 0.4, 0.32] as [number, number, number],
-        rotation: segmentRotation(points.left_shoulder, points.left_elbow),
-      };
-    case 'shoulder_right':
-      return {
-        ...zone,
-        position: points.right_shoulder,
-        scale: [0.36, 0.4, 0.32] as [number, number, number],
-        rotation: segmentRotation(points.right_shoulder, points.right_elbow),
-      };
-    case 'bicep_left':
-      return {
-        ...zone,
-        position: midpoint(points.left_shoulder, points.left_wrist),
-        scale: [
-          0.3,
-          Math.max(0.92, distance(points.left_shoulder, points.left_wrist)),
-          0.28,
-        ] as [number, number, number],
-        rotation: segmentRotation(points.left_shoulder, points.left_wrist),
-      };
-    case 'bicep_right':
-      return {
-        ...zone,
-        position: midpoint(points.right_shoulder, points.right_wrist),
-        scale: [
-          0.3,
-          Math.max(0.92, distance(points.right_shoulder, points.right_wrist)),
-          0.28,
-        ] as [number, number, number],
-        rotation: segmentRotation(points.right_shoulder, points.right_wrist),
-      };
-    case 'glute_left':
-      return {
-        ...zone,
-        position: mixPoint(points.left_hip, points.left_knee, 0.36),
-        scale: [
-          0.38,
-          Math.max(0.52, distance(points.left_hip, points.left_knee) * 0.72),
-          0.34,
-        ] as [number, number, number],
-        rotation: segmentRotation(points.left_hip, points.left_knee),
-      };
-    case 'glute_right':
-      return {
-        ...zone,
-        position: mixPoint(points.right_hip, points.right_knee, 0.36),
-        scale: [
-          0.38,
-          Math.max(0.52, distance(points.right_hip, points.right_knee) * 0.72),
-          0.34,
-        ] as [number, number, number],
-        rotation: segmentRotation(points.right_hip, points.right_knee),
-      };
-    case 'quad_left':
-      return {
-        ...zone,
-        position: midpoint(points.left_knee, points.left_ankle),
-        scale: [
-          0.34,
-          Math.max(0.82, distance(points.left_knee, points.left_ankle)),
-          0.28,
-        ] as [number, number, number],
-        rotation: segmentRotation(points.left_knee, points.left_ankle),
-      };
-    case 'quad_right':
-      return {
-        ...zone,
-        position: midpoint(points.right_knee, points.right_ankle),
-        scale: [
-          0.34,
-          Math.max(0.82, distance(points.right_knee, points.right_ankle)),
-          0.28,
-        ] as [number, number, number],
-        rotation: segmentRotation(points.right_knee, points.right_ankle),
-      };
-    case 'lats_left': {
-      const base = mixPoint(points.left_shoulder, points.left_hip, 0.46);
-      return {
-        ...zone,
-        position: [
-          base[0] - (shoulderWidth * 0.16),
-          base[1],
-          base[2] - 0.24,
-        ] as [number, number, number],
-        scale: [0.32, Math.max(0.8, torsoHeight * 0.72), 0.26] as [number, number, number],
-        rotation: torsoRotation,
-      };
-    }
-    case 'lats_right': {
-      const base = mixPoint(points.right_shoulder, points.right_hip, 0.46);
-      return {
-        ...zone,
-        position: [
-          base[0] + (shoulderWidth * 0.16),
-          base[1],
-          base[2] - 0.24,
-        ] as [number, number, number],
-        scale: [0.32, Math.max(0.8, torsoHeight * 0.72), 0.26] as [number, number, number],
-        rotation: torsoRotation,
-      };
-    }
-    default:
-      return zone;
-  }
+  return {
+    color,
+    emissive: color,
+    emissiveIntensity: targeted
+      ? 0.12 + (effective * 1.45) + (tension * 0.28)
+      : 0.14 + (effective * 0.52),
+    opacity: targeted ? 0.16 + (effective * 0.84) : 0.84,
+    roughness: targeted ? 0.28 : 0.22,
+    metalness: targeted ? 0.05 : 0.1,
+  };
 }
 
-function skeletonPoints(poseFrame?: WorkoutPoseFrame | null) {
-  const points = posePoints(poseFrame);
-  if (!points) {
-    return null;
-  }
+function SegmentPart({
+  start,
+  end,
+  radius,
+  material,
+}: {
+  start: ScenePoint;
+  end: ScenePoint;
+  radius: number;
+  material: MaterialPreset;
+}) {
+  const length = Math.max(0.001, distance(start, end) - (radius * 2));
 
-  return poseConnections
-    .map(([start, end]) => {
-      const startPoint = points[start as keyof typeof points];
-      const endPoint = points[end as keyof typeof points];
-      if (!startPoint || !endPoint) {
-        return null;
-      }
-      return [startPoint, endPoint] as const;
-    })
-    .filter(Boolean) as ReadonlyArray<readonly [ScenePoint, ScenePoint]>;
+  return (
+    <mesh position={midpoint(start, end)} rotation={segmentRotation(start, end)}>
+      <capsuleGeometry args={[radius, length, 10, 18]} />
+      <meshStandardMaterial
+        color={material.color}
+        emissive={material.emissive}
+        emissiveIntensity={material.emissiveIntensity}
+        roughness={material.roughness}
+        metalness={material.metalness}
+        transparent
+        opacity={material.opacity}
+      />
+    </mesh>
+  );
+}
+
+function OrbPart({
+  center,
+  radius,
+  material,
+}: {
+  center: ScenePoint;
+  radius: number;
+  material: MaterialPreset;
+}) {
+  return (
+    <mesh position={center}>
+      <sphereGeometry args={[radius, 28, 28]} />
+      <meshStandardMaterial
+        color={material.color}
+        emissive={material.emissive}
+        emissiveIntensity={material.emissiveIntensity}
+        roughness={material.roughness}
+        metalness={material.metalness}
+        transparent
+        opacity={material.opacity}
+      />
+    </mesh>
+  );
 }
 
 export function MuscleMannequin({
@@ -368,89 +488,433 @@ export function MuscleMannequin({
   poseFrame?: WorkoutPoseFrame | null;
   tension?: number;
 }) {
-  const zoneEntries = zones.map((zone) => ({
-    zone: resolveAnimatedZone(zone, poseFrame),
-    rawIntensity: zoneIntensity(muscleEngagement, zone.muscles),
-  }));
-  const maxIntensity = Math.max(...zoneEntries.map((entry) => entry.rawIntensity), 0);
-  const skeleton = skeletonPoints(poseFrame);
+  const targeted = renderMode === 'targeted';
+  const pose = resolvePose(poseFrame);
+
+  const shoulderMid = midpoint(pose.left_shoulder, pose.right_shoulder);
+  const hipMid = midpoint(pose.left_hip, pose.right_hip);
+  const shoulderWidth = distance(pose.left_shoulder, pose.right_shoulder);
+  const hipWidth = distance(pose.left_hip, pose.right_hip);
+  const torsoHeight = distance(shoulderMid, hipMid);
+  const armRadius = Math.max(0.12, shoulderWidth * 0.115);
+  const forearmRadius = armRadius * 0.82;
+  const thighRadius = Math.max(0.15, hipWidth * 0.235);
+  const shinRadius = thighRadius * 0.72;
+  const shell = shellMaterial(tension, targeted);
+
+  const neckTop = shift(shoulderMid, 0, shoulderWidth * 0.38, 0.02);
+  const headCenter = shift(shoulderMid, 0, shoulderWidth * 0.7, 0.02);
+  const ribTop = shift(mixPoint(shoulderMid, hipMid, 0.17), 0, 0.04, 0.03);
+  const ribBottom = shift(mixPoint(shoulderMid, hipMid, 0.44), 0, -0.02, 0.02);
+  const abdomenTop = shift(mixPoint(shoulderMid, hipMid, 0.48), 0, 0, 0.02);
+  const abdomenBottom = shift(mixPoint(shoulderMid, hipMid, 0.82), 0, -0.02, 0.02);
+  const pelvisCenter = shift(hipMid, 0, -0.05, -0.01);
+
+  const shellJoints: MuscleOrb[] = [
+    {id: 'shell_head', muscles: [], center: headCenter, radius: shoulderWidth * 0.27},
+    {id: 'shell_left_shoulder', muscles: [], center: pose.left_shoulder, radius: armRadius * 0.9},
+    {id: 'shell_right_shoulder', muscles: [], center: pose.right_shoulder, radius: armRadius * 0.9},
+    {id: 'shell_left_elbow', muscles: [], center: pose.left_elbow, radius: armRadius * 0.42},
+    {id: 'shell_right_elbow', muscles: [], center: pose.right_elbow, radius: armRadius * 0.42},
+    {id: 'shell_left_wrist', muscles: [], center: pose.left_wrist, radius: forearmRadius * 0.36},
+    {id: 'shell_right_wrist', muscles: [], center: pose.right_wrist, radius: forearmRadius * 0.36},
+    {id: 'shell_pelvis', muscles: [], center: pelvisCenter, radius: hipWidth * 0.26},
+    {id: 'shell_left_hip', muscles: [], center: pose.left_hip, radius: thighRadius * 0.68},
+    {id: 'shell_right_hip', muscles: [], center: pose.right_hip, radius: thighRadius * 0.68},
+    {id: 'shell_left_knee', muscles: [], center: pose.left_knee, radius: thighRadius * 0.42},
+    {id: 'shell_right_knee', muscles: [], center: pose.right_knee, radius: thighRadius * 0.42},
+    {id: 'shell_left_ankle', muscles: [], center: pose.left_ankle, radius: shinRadius * 0.34},
+    {id: 'shell_right_ankle', muscles: [], center: pose.right_ankle, radius: shinRadius * 0.34},
+  ];
+
+  const absUpperLeft = shift(mixPoint(ribTop, ribBottom, 0.35), -shoulderWidth * 0.07, 0, 0.18);
+  const absUpperRight = shift(mixPoint(ribTop, ribBottom, 0.35), shoulderWidth * 0.07, 0, 0.18);
+  const absMidLeft = shift(mixPoint(ribBottom, abdomenTop, 0.45), -shoulderWidth * 0.07, 0, 0.17);
+  const absMidRight = shift(mixPoint(ribBottom, abdomenTop, 0.45), shoulderWidth * 0.07, 0, 0.17);
+  const absLowerLeft = shift(mixPoint(abdomenTop, abdomenBottom, 0.52), -shoulderWidth * 0.07, 0, 0.14);
+  const absLowerRight = shift(mixPoint(abdomenTop, abdomenBottom, 0.52), shoulderWidth * 0.07, 0, 0.14);
+
+  const muscleSegments: MuscleSegment[] = [
+    {
+      id: 'chest_upper_left',
+      muscles: ['chest_left', 'deltoid_left'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.15), -shoulderWidth * 0.24, 0.04, 0.18),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.28), -shoulderWidth * 0.11, -0.02, 0.2),
+      radius: shoulderWidth * 0.078,
+    },
+    {
+      id: 'chest_lower_left',
+      muscles: ['chest_left'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.28), -shoulderWidth * 0.12, -0.01, 0.18),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.42), -shoulderWidth * 0.09, -0.03, 0.16),
+      radius: shoulderWidth * 0.07,
+    },
+    {
+      id: 'chest_upper_right',
+      muscles: ['chest_right', 'deltoid_right'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.15), shoulderWidth * 0.24, 0.04, 0.18),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.28), shoulderWidth * 0.11, -0.02, 0.2),
+      radius: shoulderWidth * 0.078,
+    },
+    {
+      id: 'chest_lower_right',
+      muscles: ['chest_right'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.28), shoulderWidth * 0.12, -0.01, 0.18),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.42), shoulderWidth * 0.09, -0.03, 0.16),
+      radius: shoulderWidth * 0.07,
+    },
+    {
+      id: 'serratus_left',
+      muscles: ['oblique_left', 'lats_left', 'chest_left'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.31), -shoulderWidth * 0.22, 0.01, 0.08),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.53), -shoulderWidth * 0.18, -0.02, 0.06),
+      radius: shoulderWidth * 0.05,
+    },
+    {
+      id: 'serratus_right',
+      muscles: ['oblique_right', 'lats_right', 'chest_right'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.31), shoulderWidth * 0.22, 0.01, 0.08),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.53), shoulderWidth * 0.18, -0.02, 0.06),
+      radius: shoulderWidth * 0.05,
+    },
+    {
+      id: 'oblique_left',
+      muscles: ['oblique_left', 'abs_lower'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.4), -shoulderWidth * 0.19, 0.02, 0.04),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.76), -hipWidth * 0.25, -0.03, 0.02),
+      radius: shoulderWidth * 0.054,
+    },
+    {
+      id: 'oblique_right',
+      muscles: ['oblique_right', 'abs_lower'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.4), shoulderWidth * 0.19, 0.02, 0.04),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.76), hipWidth * 0.25, -0.03, 0.02),
+      radius: shoulderWidth * 0.054,
+    },
+    {
+      id: 'lat_upper_left',
+      muscles: ['lats_left', 'trapezius_left'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.18), -shoulderWidth * 0.29, 0.03, -0.05),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.46), -shoulderWidth * 0.27, -0.02, -0.1),
+      radius: shoulderWidth * 0.06,
+    },
+    {
+      id: 'lat_lower_left',
+      muscles: ['lats_left', 'oblique_left'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.46), -hipWidth * 0.29, 0.02, -0.08),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.78), -hipWidth * 0.23, -0.03, -0.12),
+      radius: shoulderWidth * 0.058,
+    },
+    {
+      id: 'lat_upper_right',
+      muscles: ['lats_right', 'trapezius_right'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.18), shoulderWidth * 0.29, 0.03, -0.05),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.46), shoulderWidth * 0.27, -0.02, -0.1),
+      radius: shoulderWidth * 0.06,
+    },
+    {
+      id: 'lat_lower_right',
+      muscles: ['lats_right', 'oblique_right'],
+      start: shift(mixPoint(shoulderMid, hipMid, 0.46), hipWidth * 0.29, 0.02, -0.08),
+      end: shift(mixPoint(shoulderMid, hipMid, 0.78), hipWidth * 0.23, -0.03, -0.12),
+      radius: shoulderWidth * 0.058,
+    },
+    {
+      id: 'trapezius_left',
+      muscles: ['trapezius_left', 'deltoid_left'],
+      start: shift(neckTop, -shoulderWidth * 0.08, -0.04, -0.02),
+      end: shift(pose.left_shoulder, -0.03, 0.02, -0.03),
+      radius: shoulderWidth * 0.046,
+    },
+    {
+      id: 'trapezius_right',
+      muscles: ['trapezius_right', 'deltoid_right'],
+      start: shift(neckTop, shoulderWidth * 0.08, -0.04, -0.02),
+      end: shift(pose.right_shoulder, 0.03, 0.02, -0.03),
+      radius: shoulderWidth * 0.046,
+    },
+    {
+      id: 'bicep_left',
+      muscles: ['bicep_left'],
+      start: shift(pose.left_shoulder, 0.01, -0.06, 0.08),
+      end: shift(pose.left_elbow, 0.01, 0.04, 0.1),
+      radius: armRadius * 0.54,
+    },
+    {
+      id: 'tricep_left',
+      muscles: ['tricep_left'],
+      start: shift(pose.left_shoulder, 0.01, -0.04, -0.06),
+      end: shift(pose.left_elbow, 0.01, 0.03, -0.08),
+      radius: armRadius * 0.46,
+    },
+    {
+      id: 'brachialis_left',
+      muscles: ['bicep_left', 'forearm_left'],
+      start: shift(mixPoint(pose.left_shoulder, pose.left_elbow, 0.24), -0.04, 0, 0.02),
+      end: shift(mixPoint(pose.left_shoulder, pose.left_elbow, 0.82), -0.05, 0, 0.03),
+      radius: armRadius * 0.26,
+    },
+    {
+      id: 'bicep_right',
+      muscles: ['bicep_right'],
+      start: shift(pose.right_shoulder, -0.01, -0.06, 0.08),
+      end: shift(pose.right_elbow, -0.01, 0.04, 0.1),
+      radius: armRadius * 0.54,
+    },
+    {
+      id: 'tricep_right',
+      muscles: ['tricep_right'],
+      start: shift(pose.right_shoulder, -0.01, -0.04, -0.06),
+      end: shift(pose.right_elbow, -0.01, 0.03, -0.08),
+      radius: armRadius * 0.46,
+    },
+    {
+      id: 'brachialis_right',
+      muscles: ['bicep_right', 'forearm_right'],
+      start: shift(mixPoint(pose.right_shoulder, pose.right_elbow, 0.24), 0.04, 0, 0.02),
+      end: shift(mixPoint(pose.right_shoulder, pose.right_elbow, 0.82), 0.05, 0, 0.03),
+      radius: armRadius * 0.26,
+    },
+    {
+      id: 'forearm_flexor_left',
+      muscles: ['forearm_left'],
+      start: shift(pose.left_elbow, 0.01, -0.02, 0.07),
+      end: shift(pose.left_wrist, 0.01, 0.03, 0.09),
+      radius: forearmRadius * 0.44,
+    },
+    {
+      id: 'forearm_extensor_left',
+      muscles: ['forearm_left', 'tricep_left'],
+      start: shift(pose.left_elbow, 0.01, -0.02, -0.04),
+      end: shift(pose.left_wrist, 0.01, 0.03, -0.05),
+      radius: forearmRadius * 0.34,
+    },
+    {
+      id: 'forearm_flexor_right',
+      muscles: ['forearm_right'],
+      start: shift(pose.right_elbow, -0.01, -0.02, 0.07),
+      end: shift(pose.right_wrist, -0.01, 0.03, 0.09),
+      radius: forearmRadius * 0.44,
+    },
+    {
+      id: 'forearm_extensor_right',
+      muscles: ['forearm_right', 'tricep_right'],
+      start: shift(pose.right_elbow, -0.01, -0.02, -0.04),
+      end: shift(pose.right_wrist, -0.01, 0.03, -0.05),
+      radius: forearmRadius * 0.34,
+    },
+    {
+      id: 'glute_left',
+      muscles: ['glute_left', 'hamstring_left'],
+      start: shift(pose.left_hip, 0.04, -0.02, -0.08),
+      end: shift(mixPoint(pose.left_hip, pose.left_knee, 0.24), 0.05, 0.02, -0.1),
+      radius: thighRadius * 0.56,
+    },
+    {
+      id: 'glute_right',
+      muscles: ['glute_right', 'hamstring_right'],
+      start: shift(pose.right_hip, -0.04, -0.02, -0.08),
+      end: shift(mixPoint(pose.right_hip, pose.right_knee, 0.24), -0.05, 0.02, -0.1),
+      radius: thighRadius * 0.56,
+    },
+    {
+      id: 'adductor_left',
+      muscles: ['quad_left', 'hamstring_left', 'glute_left'],
+      start: shift(pose.left_hip, shoulderWidth * 0.04, -0.08, 0.04),
+      end: shift(pose.left_knee, shoulderWidth * 0.06, 0.08, 0.02),
+      radius: thighRadius * 0.28,
+    },
+    {
+      id: 'adductor_right',
+      muscles: ['quad_right', 'hamstring_right', 'glute_right'],
+      start: shift(pose.right_hip, -shoulderWidth * 0.04, -0.08, 0.04),
+      end: shift(pose.right_knee, -shoulderWidth * 0.06, 0.08, 0.02),
+      radius: thighRadius * 0.28,
+    },
+    {
+      id: 'quad_outer_left',
+      muscles: ['quad_left'],
+      start: shift(pose.left_hip, -0.04, -0.08, 0.12),
+      end: shift(pose.left_knee, -0.05, 0.08, 0.1),
+      radius: thighRadius * 0.38,
+    },
+    {
+      id: 'quad_inner_left',
+      muscles: ['quad_left', 'glute_left'],
+      start: shift(pose.left_hip, 0.03, -0.08, 0.11),
+      end: shift(pose.left_knee, 0.03, 0.08, 0.09),
+      radius: thighRadius * 0.34,
+    },
+    {
+      id: 'quad_outer_right',
+      muscles: ['quad_right'],
+      start: shift(pose.right_hip, 0.04, -0.08, 0.12),
+      end: shift(pose.right_knee, 0.05, 0.08, 0.1),
+      radius: thighRadius * 0.38,
+    },
+    {
+      id: 'quad_inner_right',
+      muscles: ['quad_right', 'glute_right'],
+      start: shift(pose.right_hip, -0.03, -0.08, 0.11),
+      end: shift(pose.right_knee, -0.03, 0.08, 0.09),
+      radius: thighRadius * 0.34,
+    },
+    {
+      id: 'hamstring_left',
+      muscles: ['hamstring_left', 'glute_left'],
+      start: shift(pose.left_hip, 0, -0.08, -0.08),
+      end: shift(pose.left_knee, 0, 0.03, -0.1),
+      radius: thighRadius * 0.36,
+    },
+    {
+      id: 'hamstring_right',
+      muscles: ['hamstring_right', 'glute_right'],
+      start: shift(pose.right_hip, 0, -0.08, -0.08),
+      end: shift(pose.right_knee, 0, 0.03, -0.1),
+      radius: thighRadius * 0.36,
+    },
+    {
+      id: 'calf_outer_left',
+      muscles: ['calf_left'],
+      start: shift(pose.left_knee, -0.03, -0.08, -0.03),
+      end: shift(pose.left_ankle, -0.02, 0.1, -0.05),
+      radius: shinRadius * 0.34,
+    },
+    {
+      id: 'calf_inner_left',
+      muscles: ['calf_left'],
+      start: shift(pose.left_knee, 0.03, -0.08, -0.02),
+      end: shift(pose.left_ankle, 0.02, 0.1, -0.04),
+      radius: shinRadius * 0.28,
+    },
+    {
+      id: 'tibialis_left',
+      muscles: ['calf_left', 'quad_left'],
+      start: shift(pose.left_knee, 0, -0.1, 0.08),
+      end: shift(pose.left_ankle, 0, 0.12, 0.12),
+      radius: shinRadius * 0.18,
+    },
+    {
+      id: 'calf_outer_right',
+      muscles: ['calf_right'],
+      start: shift(pose.right_knee, 0.03, -0.08, -0.03),
+      end: shift(pose.right_ankle, 0.02, 0.1, -0.05),
+      radius: shinRadius * 0.34,
+    },
+    {
+      id: 'calf_inner_right',
+      muscles: ['calf_right'],
+      start: shift(pose.right_knee, -0.03, -0.08, -0.02),
+      end: shift(pose.right_ankle, -0.02, 0.1, -0.04),
+      radius: shinRadius * 0.28,
+    },
+    {
+      id: 'tibialis_right',
+      muscles: ['calf_right', 'quad_right'],
+      start: shift(pose.right_knee, 0, -0.1, 0.08),
+      end: shift(pose.right_ankle, 0, 0.12, 0.12),
+      radius: shinRadius * 0.18,
+    },
+  ];
+
+  const muscleOrbs: MuscleOrb[] = [
+    {id: 'neck', muscles: ['neck', 'trapezius_left', 'trapezius_right'], center: shift(shoulderMid, 0, shoulderWidth * 0.46, 0.04), radius: shoulderWidth * 0.08},
+    {id: 'deltoid_left', muscles: ['deltoid_left', 'trapezius_left'], center: shift(pose.left_shoulder, 0.01, 0, 0.05), radius: armRadius * 0.72},
+    {id: 'deltoid_right', muscles: ['deltoid_right', 'trapezius_right'], center: shift(pose.right_shoulder, -0.01, 0, 0.05), radius: armRadius * 0.72},
+    {id: 'abs_upper_left', muscles: ['abs_upper', 'oblique_left'], center: absUpperLeft, radius: shoulderWidth * 0.052},
+    {id: 'abs_upper_right', muscles: ['abs_upper', 'oblique_right'], center: absUpperRight, radius: shoulderWidth * 0.052},
+    {id: 'abs_mid_left', muscles: ['abs_upper', 'abs_lower', 'oblique_left'], center: absMidLeft, radius: shoulderWidth * 0.05},
+    {id: 'abs_mid_right', muscles: ['abs_upper', 'abs_lower', 'oblique_right'], center: absMidRight, radius: shoulderWidth * 0.05},
+    {id: 'abs_lower_left', muscles: ['abs_lower', 'oblique_left'], center: absLowerLeft, radius: shoulderWidth * 0.046},
+    {id: 'abs_lower_right', muscles: ['abs_lower', 'oblique_right'], center: absLowerRight, radius: shoulderWidth * 0.046},
+    {id: 'glute_cap_left', muscles: ['glute_left'], center: shift(pose.left_hip, 0.04, -0.02, -0.08), radius: thighRadius * 0.34},
+    {id: 'glute_cap_right', muscles: ['glute_right'], center: shift(pose.right_hip, -0.04, -0.02, -0.08), radius: thighRadius * 0.34},
+  ];
 
   return (
     <div className={className ?? 'h-[480px] w-full'}>
-      <Canvas camera={{position: [0, 0.8, 6], fov: 32}}>
-        <ambientLight intensity={renderMode === 'targeted' ? 1.1 : 1.4} />
+      <Canvas camera={{position: [0, 0.52, 6.1], fov: 29}}>
+        <ambientLight intensity={targeted ? 1.0 : 1.22} />
         <directionalLight
-          position={[6, 6, 5]}
-          intensity={renderMode === 'targeted' ? 1.85 : 2.2}
-          color={renderMode === 'targeted' ? '#ffb7aa' : '#ffd7a6'}
+          position={[5.4, 7.2, 6.2]}
+          intensity={targeted ? 1.88 : 2.08}
+          color={targeted ? '#ffd4c7' : '#ffe4bb'}
         />
         <directionalLight
-          position={[-5, -2, 2]}
-          intensity={renderMode === 'targeted' ? 0.95 : 1.2}
-          color="#f4eee1"
+          position={[-4.2, -3.2, 3.2]}
+          intensity={targeted ? 0.78 : 0.96}
+          color="#efe6dc"
         />
 
-        <group rotation={[0.18, 0.62, 0]}>
-          {zoneEntries.map(({zone, rawIntensity}) => {
-            const normalizedIntensity =
-              renderMode === 'targeted' && maxIntensity > 0
-                ? Math.min(1, rawIntensity / maxIntensity)
-                : rawIntensity;
-            const color =
-              renderMode === 'targeted'
-                ? targetedColor(normalizedIntensity)
-                : heatColor(normalizedIntensity);
-            const emissiveIntensity =
-              renderMode === 'targeted'
-                ? normalizedIntensity < 0.22
-                  ? 0.04
-                  : 0.22 + normalizedIntensity * 0.92
-                : 0.18 + normalizedIntensity * 0.45;
-            return (
-              <mesh
-                key={zone.id}
-                position={zone.position}
-                scale={zone.scale}
-                rotation={zone.rotation ?? [0, 0, 0]}
-              >
-                <boxGeometry args={[1, 1, 1]} />
-                <meshStandardMaterial
-                  color={color}
-                  roughness={renderMode === 'targeted' ? 0.28 : 0.2}
-                  metalness={renderMode === 'targeted' ? 0.08 : 0.12}
-                  emissive={color}
-                  emissiveIntensity={emissiveIntensity + (tension * 0.35)}
-                  transparent={renderMode === 'targeted'}
-                  opacity={renderMode === 'targeted' ? 0.66 + normalizedIntensity * 0.34 : 1}
-                />
-              </mesh>
-            );
-          })}
+        <group rotation={[0.06, 0.22, 0]}>
+          <SegmentPart start={midpoint(pose.left_shoulder, pose.right_shoulder)} end={neckTop} radius={shoulderWidth * 0.08} material={shell} />
+          <SegmentPart start={shift(pose.left_shoulder, 0.08, -0.02, 0.02)} end={shift(pose.right_shoulder, -0.08, -0.02, 0.02)} radius={shoulderWidth * 0.06} material={shell} />
+          <SegmentPart start={ribTop} end={ribBottom} radius={shoulderWidth * 0.31} material={shell} />
+          <SegmentPart start={abdomenTop} end={abdomenBottom} radius={hipWidth * 0.28} material={shell} />
+          <SegmentPart start={pose.left_shoulder} end={pose.left_elbow} radius={armRadius} material={shell} />
+          <SegmentPart start={pose.right_shoulder} end={pose.right_elbow} radius={armRadius} material={shell} />
+          <SegmentPart start={pose.left_elbow} end={pose.left_wrist} radius={forearmRadius} material={shell} />
+          <SegmentPart start={pose.right_elbow} end={pose.right_wrist} radius={forearmRadius} material={shell} />
+          <SegmentPart start={pose.left_hip} end={pose.left_knee} radius={thighRadius} material={shell} />
+          <SegmentPart start={pose.right_hip} end={pose.right_knee} radius={thighRadius} material={shell} />
+          <SegmentPart start={pose.left_knee} end={pose.left_ankle} radius={shinRadius} material={shell} />
+          <SegmentPart start={pose.right_knee} end={pose.right_ankle} radius={shinRadius} material={shell} />
 
-          {skeleton?.map(([start, end], index) => (
-            <Line
-              key={`${start.join('-')}-${end.join('-')}-${index}`}
-              points={[start, end]}
-              color={renderMode === 'targeted' ? '#ffe1d9' : '#f4eee1'}
-              lineWidth={2}
-              transparent
-              opacity={0.55 + (tension * 0.25)}
+          {shellJoints.map((joint) => (
+            <OrbPart
+              key={joint.id}
+              center={joint.center}
+              radius={joint.radius}
+              material={shell}
             />
           ))}
 
-          <mesh position={[0, -3.85, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[1.7, 2.45, 48]} />
+          {muscleSegments.map((segment) => {
+            const material = muscleMaterial(
+              zoneIntensity(muscleEngagement, segment.muscles),
+              tension,
+              targeted,
+            );
+            return (
+              <SegmentPart
+                key={segment.id}
+                start={segment.start}
+                end={segment.end}
+                radius={segment.radius}
+                material={material}
+              />
+            );
+          })}
+
+          {muscleOrbs.map((orb) => {
+            const material = muscleMaterial(
+              zoneIntensity(muscleEngagement, orb.muscles),
+              tension,
+              targeted,
+            );
+            return (
+              <OrbPart
+                key={orb.id}
+                center={orb.center}
+                radius={orb.radius}
+                material={material}
+              />
+            );
+          })}
+
+          <mesh position={[0, -3.94, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[1.82, 2.58, 64]} />
             <meshStandardMaterial
-              color={renderMode === 'targeted' ? '#ff4b3c' : '#ff9a3d'}
-              emissive={renderMode === 'targeted' ? '#ff4b3c' : '#ff9a3d'}
-              emissiveIntensity={renderMode === 'targeted' ? 0.45 + (tension * 0.45) : 0.25}
+              color={targeted ? '#ff5d49' : '#ff9a3d'}
+              emissive={targeted ? '#ff5d49' : '#ff9a3d'}
+              emissiveIntensity={targeted ? 0.36 + (tension * 0.46) : 0.22}
               transparent
-              opacity={renderMode === 'targeted' ? 0.5 + (tension * 0.15) : 0.4}
+              opacity={targeted ? 0.42 + (tension * 0.18) : 0.28}
             />
           </mesh>
         </group>
 
-        <OrbitControls enablePan={false} minDistance={4} maxDistance={8} />
+        <OrbitControls enablePan={false} minDistance={4.4} maxDistance={8.2} />
       </Canvas>
     </div>
   );
