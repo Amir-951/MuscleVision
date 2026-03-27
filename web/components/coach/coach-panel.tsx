@@ -4,6 +4,7 @@ import {Bot, RefreshCcw, SendHorizontal, Sparkles} from 'lucide-react';
 import {useEffect, useState} from 'react';
 
 import {CoachAvatarScene} from '@/components/coach/coach-avatar-scene';
+import {CoachLiveSession} from '@/components/coach/coach-live-session';
 import {coachPersonaList, coachPersonaMap} from '@/components/coach/coach-personas';
 import {useAuth} from '@/components/providers/auth-provider';
 import {LabCard} from '@/components/shared/lab-card';
@@ -19,6 +20,7 @@ export function CoachPanel() {
   const [draft, setDraft] = useState('');
   const [sessions, setSessions] = useState<WorkoutHistoryItem[]>([]);
   const [linkedSessionId, setLinkedSessionId] = useState<string>('');
+  const [workspaceMode, setWorkspaceMode] = useState<'live' | 'chat'>('live');
   const [error, setError] = useState<string | null>(null);
   const currentPersona = coachPersonaMap[coachId];
 
@@ -149,17 +151,43 @@ export function CoachPanel() {
         <LabCard className="flex min-h-[680px] flex-col p-0">
           <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-mist/45">Conversation</p>
+              <p className="text-xs uppercase tracking-[0.28em] text-mist/45">Workspace</p>
               <h3 className="mt-1 text-xl text-ivory">{currentPersona.name}</h3>
             </div>
-            <button
-              type="button"
-              onClick={() => void handleClear()}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs uppercase tracking-[0.28em] text-mist/60 transition hover:border-white/20 hover:text-ivory"
-            >
-              <RefreshCcw className="h-4 w-4" />
-              Reset
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setWorkspaceMode('live')}
+                className={`rounded-full px-4 py-2 text-xs uppercase tracking-[0.24em] transition ${
+                  workspaceMode === 'live'
+                    ? 'bg-white/12 text-ivory'
+                    : 'border border-white/10 text-mist/60 hover:border-white/20 hover:text-ivory'
+                }`}
+              >
+                Appel live
+              </button>
+              <button
+                type="button"
+                onClick={() => setWorkspaceMode('chat')}
+                className={`rounded-full px-4 py-2 text-xs uppercase tracking-[0.24em] transition ${
+                  workspaceMode === 'chat'
+                    ? 'bg-white/12 text-ivory'
+                    : 'border border-white/10 text-mist/60 hover:border-white/20 hover:text-ivory'
+                }`}
+              >
+                Chat
+              </button>
+              {workspaceMode === 'chat' ? (
+                <button
+                  type="button"
+                  onClick={() => void handleClear()}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs uppercase tracking-[0.28em] text-mist/60 transition hover:border-white/20 hover:text-ivory"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Reset
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="border-b border-white/10 p-6">
@@ -195,66 +223,74 @@ export function CoachPanel() {
             </div>
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
-            {messages.length === 0 ? (
-              <div className="flex h-full items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-black/20 text-sm text-mist/55">
-                <div className="max-w-md space-y-3 text-center">
-                  <p className="text-[10px] uppercase tracking-[0.32em] text-mist/40">{currentPersona.environment}</p>
-                  <p className="text-base text-mist/72">{currentPersona.intro}</p>
-                </div>
-              </div>
-            ) : null}
-
-            {messages.map((message, index) => (
-              <div
-                key={`${message.role}-${index}-${message.content.slice(0, 12)}`}
-                className={`max-w-[82%] rounded-[24px] px-5 py-4 text-sm leading-7 ${
-                  message.role === 'assistant'
-                    ? 'border border-white/10 bg-white/5 text-mist/80'
-                    : 'ml-auto bg-[linear-gradient(135deg,rgba(233,75,53,0.28),rgba(255,154,61,0.18))] text-ivory'
-                }`}
-              >
-                {message.role === 'assistant' ? (
-                  <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-mist/40">
-                    <span
-                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border"
-                      style={{
-                        borderColor: `${currentPersona.palette.edge}50`,
-                        background: `linear-gradient(135deg, ${currentPersona.palette.accent}44, ${currentPersona.palette.glow}22)`,
-                      }}
-                    >
-                      <Bot className="h-3.5 w-3.5" />
-                    </span>
-                    {currentPersona.name}
+          {workspaceMode === 'live' ? (
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <CoachLiveSession coachId={coachId} persona={currentPersona} userId={user?.id} />
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+                {messages.length === 0 ? (
+                  <div className="flex h-full items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-black/20 text-sm text-mist/55">
+                    <div className="max-w-md space-y-3 text-center">
+                      <p className="text-[10px] uppercase tracking-[0.32em] text-mist/40">{currentPersona.environment}</p>
+                      <p className="text-base text-mist/72">{currentPersona.intro}</p>
+                    </div>
                   </div>
                 ) : null}
-                {message.content}
-              </div>
-            ))}
-          </div>
 
-          <div className="border-t border-white/10 px-6 py-5">
-            <div className="flex gap-3">
-              <textarea
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder="Demande une correction ou un plan."
-                className="min-h-[110px] flex-1 rounded-[26px] border border-white/10 bg-black/20 px-5 py-4 text-sm text-ivory outline-none placeholder:text-mist/35"
-              />
-              <button
-                type="button"
-                onClick={() => void handleSend()}
-                className="inline-flex h-fit items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-white"
-                style={{
-                  background: `linear-gradient(135deg, ${currentPersona.palette.accent}, ${currentPersona.palette.glow})`,
-                }}
-              >
-                <Sparkles className="h-4 w-4" />
-                <SendHorizontal className="h-4 w-4" />
-                Envoyer
-              </button>
-            </div>
-          </div>
+                {messages.map((message, index) => (
+                  <div
+                    key={`${message.role}-${index}-${message.content.slice(0, 12)}`}
+                    className={`max-w-[82%] rounded-[24px] px-5 py-4 text-sm leading-7 ${
+                      message.role === 'assistant'
+                        ? 'border border-white/10 bg-white/5 text-mist/80'
+                        : 'ml-auto bg-[linear-gradient(135deg,rgba(233,75,53,0.28),rgba(255,154,61,0.18))] text-ivory'
+                    }`}
+                  >
+                    {message.role === 'assistant' ? (
+                      <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-mist/40">
+                        <span
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full border"
+                          style={{
+                            borderColor: `${currentPersona.palette.edge}50`,
+                            background: `linear-gradient(135deg, ${currentPersona.palette.accent}44, ${currentPersona.palette.glow}22)`,
+                          }}
+                        >
+                          <Bot className="h-3.5 w-3.5" />
+                        </span>
+                        {currentPersona.name}
+                      </div>
+                    ) : null}
+                    {message.content}
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-white/10 px-6 py-5">
+                <div className="flex gap-3">
+                  <textarea
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    placeholder="Demande une correction ou un plan."
+                    className="min-h-[110px] flex-1 rounded-[26px] border border-white/10 bg-black/20 px-5 py-4 text-sm text-ivory outline-none placeholder:text-mist/35"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleSend()}
+                    className="inline-flex h-fit items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-white"
+                    style={{
+                      background: `linear-gradient(135deg, ${currentPersona.palette.accent}, ${currentPersona.palette.glow})`,
+                    }}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <SendHorizontal className="h-4 w-4" />
+                    Envoyer
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </LabCard>
       </div>
     </div>

@@ -4,6 +4,9 @@ import {getSupabaseBrowserClient} from '@/lib/supabase';
 import type {
   CoachId,
   CoachMessage,
+  LiveCoachFeedback,
+  LiveCoachSample,
+  LiveExerciseHint,
   NutritionAnalysisResult,
   WorkoutKeypointsArtifact,
   TodayLogResponse,
@@ -197,6 +200,79 @@ export async function clearCoachHistory(coachId: CoachId, userId: string) {
   return request<{success: boolean}>(`/coach/history/${coachId}?user_id=${userId}`, {
     method: 'DELETE',
   });
+}
+
+export async function getLiveCoachFeedback(params: {
+  coachId: CoachId;
+  userId: string;
+  frame: Blob;
+  timestampSeconds: number;
+  exerciseHint: LiveExerciseHint;
+  lastRepCount: number;
+  samples: LiveCoachSample[];
+}): Promise<LiveCoachFeedback> {
+  const form = new FormData();
+  form.append('coach_id', params.coachId);
+  form.append('user_id', params.userId);
+  form.append('exercise_hint', params.exerciseHint);
+  form.append('last_rep_count', String(params.lastRepCount));
+  form.append('timestamp_seconds', params.timestampSeconds.toFixed(3));
+  form.append(
+    'samples_json',
+    JSON.stringify(
+      params.samples.map((sample) => ({
+        timestamp: sample.timestamp,
+        keypoints: sample.keypoints,
+        metrics: sample.metrics,
+        muscle_engagement: sample.muscleEngagement,
+      })),
+    ),
+  );
+  form.append('frame', params.frame, 'live-frame.jpg');
+
+  const data = await request<any>('/coach/live-feedback', {
+    method: 'POST',
+    body: form,
+  });
+
+  return {
+    detected: Boolean(data.detected),
+    message: data.message,
+    headline: data.headline,
+    body: data.body,
+    voice: data.voice,
+    exerciseType: data.exercise_type,
+    detectedExercise: data.detected_exercise,
+    phase: data.phase,
+    repCount: data.rep_count ?? 0,
+    repDelta: data.rep_delta ?? 0,
+    correctnessScore: data.correctness_score,
+    symmetryScore: data.symmetry_score,
+    stabilityScore: data.stability_score,
+    amplitudeScore: data.amplitude_score,
+    alerts: Array.isArray(data.alerts) ? data.alerts : [],
+    tempoLabel: data.tempo_label,
+    analysisText: data.analysis_text,
+    dominantMuscles: Array.isArray(data.dominant_muscles) ? data.dominant_muscles : [],
+    muscleEngagement: data.muscle_engagement ?? {},
+    poseFrame: data.pose_frame ?? null,
+    sample: data.sample
+      ? {
+        timestamp: data.sample.timestamp,
+        keypoints: data.sample.keypoints ?? {},
+        metrics: data.sample.metrics ?? {},
+        muscleEngagement: data.sample.muscle_engagement ?? {},
+      }
+      : null,
+    samples: Array.isArray(data.samples)
+      ? data.samples.map((sample: any) => ({
+        timestamp: sample.timestamp,
+        keypoints: sample.keypoints ?? {},
+        metrics: sample.metrics ?? {},
+        muscleEngagement: sample.muscle_engagement ?? {},
+      }))
+      : [],
+  };
 }
 
 export async function analyzeFoodPhoto(file: File): Promise<NutritionAnalysisResult> {

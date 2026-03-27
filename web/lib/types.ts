@@ -1,4 +1,12 @@
 export type CoachId = 'max' | 'sergeant' | 'dr_reed' | 'bro';
+export type LiveExerciseHint =
+  | 'auto'
+  | 'pull_up'
+  | 'push_up'
+  | 'squat'
+  | 'deadlift'
+  | 'bicep_curl'
+  | 'overhead_press';
 
 export type WorkoutJobState = 'pending' | 'processing' | 'done' | 'error';
 
@@ -75,6 +83,38 @@ export interface CoachMessage {
   role: 'user' | 'assistant';
   content: string;
   createdAt?: string;
+}
+
+export interface LiveCoachSample {
+  timestamp: number;
+  keypoints: Record<string, PoseKeypoint>;
+  metrics: Record<string, number>;
+  muscleEngagement: MuscleEngagement;
+}
+
+export interface LiveCoachFeedback {
+  detected: boolean;
+  message: string;
+  headline: string;
+  body: string;
+  voice: string;
+  exerciseType: string;
+  detectedExercise?: string;
+  phase?: string;
+  repCount: number;
+  repDelta: number;
+  correctnessScore?: number;
+  symmetryScore?: number;
+  stabilityScore?: number;
+  amplitudeScore?: number;
+  alerts: string[];
+  tempoLabel?: string;
+  analysisText?: string;
+  dominantMuscles?: Array<{muscle: string; engagement: number}>;
+  muscleEngagement: MuscleEngagement;
+  poseFrame?: WorkoutPoseFrame | null;
+  sample?: LiveCoachSample | null;
+  samples: LiveCoachSample[];
 }
 
 export interface NutritionAnalysisResult {
